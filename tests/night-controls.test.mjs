@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {empty,apply,stats,standings,nightDeletionImpact,championshipComplete,suggestExtraMatch} from '../lib/pong.ts';
+const s=empty();for(let i=0;i<8;i++)apply(s,'player',{name:`Player ${i}`});const ids=s.players.map(p=>p.id);
+apply(s,'night',{name:'First night',members:ids.map((id,i)=>({id,table:i<4?1:2}))});const n=s.nights[0];const original=n.matches.map(m=>m.id);
+apply(s,'addMatch',{nightId:n.id,table:1,ids:ids.slice(0,4)},'travis');assert.deepEqual(n.matches.slice(0,-1).map(m=>m.id),original);assert.equal(n.matches.at(-1).score,null);assert.equal(n.changes.at(-1).summary,'Extra match added');
+assert.throws(()=>apply(s,'addMatch',{nightId:n.id,table:1,ids:[ids[0],ids[0],ids[1],ids[2]]}),/different/);assert.throws(()=>apply(s,'addMatch',{nightId:n.id,table:1,ids:[ids[0],ids[1],ids[2],ids[4]]}),/active players/);assert.equal(suggestExtraMatch(n,1).length,4);
+const first=n.matches[0];apply(s,'score',{nightId:n.id,matchId:first.id,score:[21,10]});const target=first.a[0],other=first.a[1];const otherBefore=stats(s)[other];
+const frozen=structuredClone(n.ranks),nightStats=structuredClone(standings(n,1));apply(s,'resetPlayerStats',{id:target},'travis');assert.deepEqual(stats(s)[target],{wins:0,losses:0,games:0,pr:500,championships:0});assert.deepEqual(stats(s)[other],otherBefore);assert.deepEqual(n.ranks,frozen);assert.deepEqual(standings(n,1),nightStats);
+apply(s,'score',{nightId:n.id,matchId:first.id,score:[10,21]});assert.equal(stats(s)[target].pr,500);assert.equal(stats(s)[target].games,0);
+const extra=n.matches.at(-1);apply(s,'score',{nightId:n.id,matchId:extra.id,score:[21,0]});assert.equal(stats(s)[target].games,1);
+apply(s,'championship',{nightId:n.id,ids:[ids[0],ids[1],ids[4],ids[5]],bestOf:3});let finals=n.matches.filter(m=>m.champ);assert.equal(championshipComplete(n),false);apply(s,'score',{nightId:n.id,matchId:finals[0].id,score:[21,0]});assert.equal(championshipComplete(n),false);apply(s,'score',{nightId:n.id,matchId:finals[1].id,score:[21,0]});assert.equal(championshipComplete(n),true);
+assert.throws(()=>apply(s,'deleteNight',{nightId:n.id}),/Finish/);apply(s,'finish',{nightId:n.id});
+apply(s,'night',{name:'Second night',members:ids.map((id,i)=>({id,table:i<4?1:2}))});const n2=s.nights[1],ranks2=structuredClone(n2.ranks);apply(s,'score',{nightId:n2.id,matchId:n2.matches[0].id,score:[21,19]});
+const expected=stats({...s,nights:[n2]});assert.ok(nightDeletionImpact(s,n.id).length>0);apply(s,'deleteNight',{nightId:n.id});assert.deepEqual(stats(s),expected);assert.deepEqual(n2.ranks,ranks2);assert.equal(s.nights.length,1);
+apply(s,'resetPlayerStats',{id:target});assert.equal(stats(s)[target].pr,500);assert.equal(stats(s)[target].games,0);
+console.log('PASS: extra matches, participant validation, reset isolation, old-score edits after reset, new results after reset, championship completion, deletion recalculation and frozen later ranks.');

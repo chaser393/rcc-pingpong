@@ -1,0 +1,20 @@
+name: rcc-pingpong
+services:
+  pong:
+    image: rcc-pingpong:local
+    build: .
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${PONG_BIND_IP:-0.0.0.0}:${PONG_PORT:-3000}:3000"
+    environment:
+      SETUP_KEY: "${SETUP_KEY:?Set SETUP_KEY in docker.env}"
+      PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:-}"
+    volumes:
+      - pong-data:/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  pong-data:
