@@ -8,6 +8,7 @@ import {
   runtime,
   requestOrigin,
 } from '@/lib/server';
+import { isSuperAdmin } from '@/lib/permissions';
 export async function POST(req: Request) {
   try {
     originCheck(req);
@@ -35,6 +36,11 @@ export async function POST(req: Request) {
     if (!password.trim()) throw Error('Password cannot be blank.');
     if (v.action === 'create') {
       const who = await manager(req);
+      if (who && !isSuperAdmin(who.username))
+        return json(
+          { error: 'Only the super admin can create managers.' },
+          403,
+        );
       if (!who) {
         if (!runtime().SETUP_KEY || v.setupKey !== runtime().SETUP_KEY)
           throw Error(
@@ -45,6 +51,8 @@ export async function POST(req: Request) {
           .first<{ n: number }>();
         if (count?.n)
           throw Error('A manager must sign in to add another manager.');
+        if (username !== 'admin')
+          throw Error('The first account must use the username admin.');
       }
       const salt = crypto.randomUUID(),
         hash = await hashPassword(password, salt);

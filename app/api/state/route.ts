@@ -1,5 +1,6 @@
 import { db, manager, json, originCheck } from '@/lib/server';
 import { apply, empty, State } from '@/lib/pong';
+import { canChangeState, isSuperAdmin } from '@/lib/permissions';
 export async function GET(req: Request) {
   const who = await manager(req);
   const row = await db()
@@ -14,6 +15,7 @@ export async function GET(req: Request) {
     state,
     version: row?.version ?? 0,
     manager: who?.username ?? null,
+    superAdmin: isSuperAdmin(who?.username),
     needsSetup: !count?.n,
   });
 }
@@ -41,12 +43,16 @@ export async function POST(req: Request) {
         },
         409,
       );
-    const state = apply(
-      JSON.parse(row!.data),
-      body.action,
-      body.value ?? {},
-      who.username,
-    );
+    const previous: State = JSON.parse(row!.data);
+    if (!canChangeState(who.username, previous, body.action, body.value))
+      return json(
+        {
+          error:
+            'Only the super admin can correct scores, reset stats or change existing games.',
+        },
+        403,
+      );
+    const state = apply(previous, body.action, body.value ?? {}, who.username);
     const result = await db()
       .prepare(
         'UPDATE club SET data = ?, version = version + 1 WHERE id = 1 AND version = ?',

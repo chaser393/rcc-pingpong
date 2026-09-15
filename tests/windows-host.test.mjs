@@ -68,7 +68,7 @@ try {
     (
       await post('/api/auth', {
         action: 'create',
-        username: 'tester',
+        username: 'admin',
         password: ' ',
         setupKey,
       })
@@ -77,7 +77,7 @@ try {
   );
   let r = await post('/api/auth', {
     action: 'create',
-    username: 'tester',
+    username: 'admin',
     password: 'x',
     setupKey,
   });
@@ -120,7 +120,7 @@ try {
     (
       await post('/api/auth', {
         action: 'login',
-        username: 'tester',
+        username: 'admin',
         password: 'x',
       })
     ).status,
@@ -128,7 +128,7 @@ try {
   );
   r = await post(
     '/api/auth',
-    { action: 'login', username: 'tester', password: 'x' },
+    { action: 'login', username: 'admin', password: 'x' },
     '',
     'https://pong.kor.red',
   );

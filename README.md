@@ -67,3 +67,24 @@ For a Docker server, use [DOCKER.md](DOCKER.md). The included Dockerfile builds 
 Run `npm run build:windows` to create a standalone Node.js package in `outputs`. It includes a SQLite adapter, migrations, startup script and transfer instructions. See [windows/HOSTING.md](windows/HOSTING.md) for setup on another Windows PC and a Cloudflare Tunnel using `pong.kor.red`. Node.js 24 or newer is required. The Windows database is separate from Sites; migrate state at cutover. Standard `npm run build` continues to target Sites/Cloudflare.
 
 `tests/rank-tables.test.mjs` checks PR splits, titles and last attendance. `tests/windows-host.test.mjs` runs the standalone package with a separate temporary database to check persistence, authentication and proxy settings.
+
+## Table visibility and manager permissions
+
+Each table header has Hide/Show. Only that table's content is collapsed; the header stays visible so it can be restored. The preference is stored in that browser's local storage per night/table, never in the shared database. Other phones are unaffected. If browser storage is unavailable, the toggle still works until reload.
+
+The existing account named `admin` is now the super admin; its password is unchanged. Every other account remains a manager. Before upgrading an existing installation, ensure you can sign in as `admin`. Fresh installations require `admin` as the first account username.
+
+| Action | Manager | Super admin |
+| --- | --- | --- |
+| View results, hide/show tables on own device | Yes | Yes |
+| Maintain roster and start a new night | Yes | Yes |
+| Enter the first score of an unscored match in an open night | Yes | Yes |
+| Edit/clear scores, score closed nights, reset career stats | No | Yes |
+| Change attendance, reshuffle, add matches, set finals, finish/rename/delete nights | No | Yes |
+| List/add/remove managers and change their passwords | No | Yes |
+
+Sign in as admin and choose **Manage managers**. Removing a manager or changing their password signs that account out. The admin account cannot be removed. Account removal does not delete players, matches or their recorded history. Passwords still only need to be nonblank.
+
+Permissions are enforced in API routes, using the stored state and authenticated session. No schema or data migration is needed. Upgrade the app container while retaining the existing data volume and backup first; do not use `down -v`.
+
+Validation: `tests/permissions-api.test.mjs` covers first-score permission, forbidden corrections and game mutations, manager administration, session revocation, and preserved history after account changes and restart. Run it with `PONG_TEST_PACKAGE_DIR` pointing to a built standalone folder containing the `drizzle` migrations. Browser visual QA for these controls was unavailable during implementation.
