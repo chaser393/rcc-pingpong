@@ -10,16 +10,19 @@ export function canChangeState(
   value: any,
 ) {
   if (isSuperAdmin(username)) return true;
-  if (['player', 'hidePlayer', 'deletePlayer', 'night'].includes(action))
-    return true;
-  if (action !== 'score') return false;
-  const night = state.nights.find((n) => n.id === value?.nightId);
-  const match = night?.matches.find((m) => m.id === value?.matchId);
-  return (
-    !!night &&
-    !night.closed &&
-    !!match &&
-    match.score === null &&
-    Array.isArray(value?.score)
-  );
+  return [
+    'player',
+    'hidePlayer',
+    'deletePlayer',
+    'night',
+    'score',
+    'addMatch',
+    'renameNight',
+    'attendance',
+    'move',
+    'reshuffle',
+    'championship',
+    'championshipFormat',
+    'finish',
+  ].includes(action);
 }

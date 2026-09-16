@@ -500,6 +500,26 @@ function applyChange(s: State, action: string, v: any): State {
         score: null,
         champ: true,
       });
+  } else if (action === 'championshipFormat') {
+    const n = openNight();
+    const finals = n.matches.filter((m) => m.champ);
+    if (![1, 3].includes(v.bestOf) || !finals.length)
+      throw Error('Set finalists and choose one game or best of three.');
+    if (finals.slice(v.bestOf).some((m) => m.score))
+      throw Error(
+        'Clear later championship scores before shortening the series.',
+      );
+    const remove = new Set(finals.slice(v.bestOf).map((m) => m.id));
+    n.matches = n.matches.filter((m) => !remove.has(m.id));
+    for (let i = finals.length; i < v.bestOf; i++)
+      n.matches.push({
+        ...finals[0],
+        id: uid(),
+        a: [...finals[0].a],
+        b: [...finals[0].b],
+        score: null,
+      });
+    n.bestOf = v.bestOf;
   } else if (action === 'finish') {
     openNight().closed = true;
   } else throw Error('Unknown action.');
@@ -535,6 +555,7 @@ export function apply(
     move: 'Player moved tables',
     reshuffle: 'Remaining games reshuffled',
     championship: 'Championship set',
+    championshipFormat: 'Championship format changed',
     finish: 'Night finished',
   };
   for (const n of s.nights) {
@@ -677,4 +698,13 @@ export function assignTablesByPR(
   return Object.fromEntries(
     ordered.map((id, i) => [id, tables === 1 || i < highCount ? '1' : '2']),
   );
+}
+
+export function pairFinalistsByPR(
+  ids: string[],
+  ranks: Record<string, number>,
+) {
+  if (ids.length !== 4) return [...ids];
+  const sorted = [...ids].sort((a, b) => (ranks[b] ?? 500) - (ranks[a] ?? 500));
+  return [sorted[0], sorted[3], sorted[1], sorted[2]];
 }
