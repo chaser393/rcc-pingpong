@@ -10,6 +10,7 @@ import {
   suggestExtraMatch,
   nightDeletionImpact,
   championshipComplete,
+  pairFinalistsByPR,
   latestAttendance,
 } from '@/lib/pong';
 import {
@@ -237,8 +238,13 @@ export default function PongApp() {
     if (n.matches.some((m) => m.champ)) {
       const m = n.matches.find((m) => m.champ)!;
       ids = [...m.a, ...m.b];
-    }
-    manage('championship', { nightId: n.id, ids, bestOf: String(n.bestOf) });
+    } else ids = pairFinalistsByPR(ids, n.ranks);
+    manage('championship', {
+      nightId: n.id,
+      ids,
+      bestOf: String(n.bestOf),
+      scored: n.matches.some((m) => m.champ && m.score),
+    });
   }
   function matchCard(m: Match, n: Night, index: number) {
     const pr = adjustment(m, n);
@@ -273,25 +279,23 @@ export default function PongApp() {
           <small>
             {pr.a} vs {pr.b} PR{m.score ? ` · ±${pr.points} each` : ''}
           </small>
-          {data.manager &&
-            !decided &&
-            (data.superAdmin || (!m.score && !n.closed)) && (
-              <button
-                className="secondary"
-                disabled={busy}
-                onClick={() =>
-                  open('score', {
-                    nightId: n.id,
-                    matchId: m.id,
-                    score: m.score?.map(String) ?? ['', ''],
-                    match: m,
-                    night: n,
-                  })
-                }
-              >
-                {m.score ? 'Edit score' : 'Enter score'}
-              </button>
-            )}
+          {data.manager && !decided && (
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() =>
+                open('score', {
+                  nightId: n.id,
+                  matchId: m.id,
+                  score: m.score?.map(String) ?? ['', ''],
+                  match: m,
+                  night: n,
+                })
+              }
+            >
+              {m.score ? 'Edit score' : 'Enter score'}
+            </button>
+          )}
         </div>
       </article>
     );
@@ -316,6 +320,22 @@ export default function PongApp() {
               {n.bestOf === 1 ? 'One game takes it.' : 'Best two out of three.'}
             </p>
           </div>
+          {data.manager && !n.closed && n.bestOf === 1 && (
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() =>
+                open('confirm', {
+                  action: 'championshipFormat',
+                  value: { nightId: n.id, bestOf: 3 },
+                  title: 'Play best two out of three?',
+                  text: 'Keep the teams and first game score, and add two games. The championship will require two wins.',
+                })
+              }
+            >
+              Make best of 3
+            </button>
+          )}
           <strong className="series-score">
             {finalWins[0]} : {finalWins[1]}
           </strong>
@@ -339,7 +359,7 @@ export default function PongApp() {
               {n.closed ? 'NIGHT COMPLETE' : 'ON THE TABLES'}
             </p>
             <h2>{n.name}</h2>
-            {data.superAdmin && (
+            {data.manager && (
               <button
                 className="secondary"
                 onClick={() =>
@@ -371,7 +391,7 @@ export default function PongApp() {
               Delete past night
             </button>
           )}
-          {data.superAdmin && !n.closed && (
+          {data.manager && !n.closed && (
             <div className="actions">
               <button
                 className="secondary"
@@ -450,7 +470,7 @@ export default function PongApp() {
                   ))}
                 </TableBody>
               </Table>
-              {data.superAdmin && !n.closed && (
+              {data.manager && !n.closed && (
                 <div className="table-actions">
                   <button
                     className="secondary"
@@ -1254,25 +1274,35 @@ export default function PongApp() {
               className="form"
               onSubmit={(e) => {
                 e.preventDefault();
-                run('championship', { ...form, bestOf: Number(form.bestOf) });
+                run(form.scored ? 'championshipFormat' : 'championship', {
+                  ...form,
+                  bestOf: Number(form.bestOf),
+                });
               }}
             >
-              {[0, 1, 2, 3].map((i) => (
-                <Choice
-                  key={i}
-                  label={`Team ${i < 2 ? 'A' : 'B'} · Player ${(i % 2) + 1}`}
-                  value={form.ids[i] ?? ''}
-                  onChange={(v) => {
-                    const ids = [...form.ids];
-                    ids[i] = v;
-                    patch('ids', ids);
-                  }}
-                  options={current!.members.map((m) => ({
-                    value: m.id,
-                    label: name(m.id),
-                  }))}
-                />
-              ))}
+              {form.scored ? (
+                <p>
+                  Team A: {form.ids.slice(0, 2).map(name).join(' + ')} · Team B:{' '}
+                  {form.ids.slice(2).map(name).join(' + ')}
+                </p>
+              ) : (
+                [0, 1, 2, 3].map((i) => (
+                  <Choice
+                    key={i}
+                    label={`Team ${i < 2 ? 'A' : 'B'} · Player ${(i % 2) + 1}`}
+                    value={form.ids[i] ?? ''}
+                    onChange={(v) => {
+                      const ids = [...form.ids];
+                      ids[i] = v;
+                      patch('ids', ids);
+                    }}
+                    options={current!.members.map((m) => ({
+                      value: m.id,
+                      label: name(m.id),
+                    }))}
+                  />
+                ))
+              )}
               <Choice
                 label="Format"
                 value={form.bestOf}
@@ -1283,10 +1313,24 @@ export default function PongApp() {
                 ]}
               />
               <p className="muted">
-                Qualification uses individual table wins. Ties are yours to
-                decide.
+                Qualification uses individual table wins. Default teams pair the
+                highest and lowest night-start PR, with the middle two together.
+                Ties and team changes are yours to decide before scoring.
               </p>
-              <button disabled={busy}>Set finalists</button>
+              {!form.scored && (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() =>
+                    patch('ids', pairFinalistsByPR(form.ids, current!.ranks))
+                  }
+                >
+                  Pair teams by PR
+                </button>
+              )}
+              <button disabled={busy}>
+                {form.scored ? 'Update format' : 'Set finalists'}
+              </button>
             </form>
           )}
         </DialogContent>

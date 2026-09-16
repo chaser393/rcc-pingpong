@@ -47,8 +47,7 @@ export async function POST(req: Request) {
     if (!canChangeState(who.username, previous, body.action, body.value))
       return json(
         {
-          error:
-            'Only the super admin can correct scores, reset stats or change existing games.',
+          error: 'This action is reserved for the super admin.',
         },
         403,
       );

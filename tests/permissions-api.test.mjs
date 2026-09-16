@@ -102,37 +102,57 @@ try {
   assert.equal(r.status, 200, await r.text());
   const before = (await read()).state;
   for (const [action, value] of [
-    ['score', { nightId: n.id, matchId: m.id, score: [10, 21] }],
-    ['score', { nightId: n.id, matchId: m.id, score: null }],
     ['resetPlayerStats', { id: ids[0] }],
     ['deleteNight', { nightId: n.id }],
-    ['renameNight', { nightId: n.id, name: 'Changed' }],
-    ['reshuffle', { nightId: n.id }],
-    ['addMatch', { nightId: n.id, table: 1, ids: ids.slice(0, 4) }],
-    ['attendance', { nightId: n.id, out: ids[0] }],
-    ['move', { nightId: n.id, playerId: ids[0], table: 2 }],
-    ['championship', { nightId: n.id, ids: ids.slice(0, 4), bestOf: 1 }],
-    ['finish', { nightId: n.id }],
     ['unknown', {}],
   ]) {
     r = await change(action, value, scorer);
     assert.equal(r.status, 403, action + ': ' + (await r.text()));
   }
   assert.deepEqual((await read()).state, before);
+  for (const [action, value] of [
+    ['score', { nightId: n.id, matchId: m.id, score: [10, 21] }],
+    ['score', { nightId: n.id, matchId: m.id, score: null }],
+    ['score', { nightId: n.id, matchId: m.id, score: [21, 10] }],
+    ['renameNight', { nightId: n.id, name: 'Changed' }],
+    ['addMatch', { nightId: n.id, table: 1, ids: ids.slice(0, 4) }],
+    ['reshuffle', { nightId: n.id }],
+    ['attendance', { nightId: n.id, out: ids[0] }],
+    ['attendance', { nightId: n.id, in: ids[0], table: 1 }],
+    ['move', { nightId: n.id, playerId: ids[0], table: 2 }],
+    ['move', { nightId: n.id, playerId: ids[0], table: 1 }],
+    ['championship', { nightId: n.id, ids: ids.slice(0, 4), bestOf: 1 }],
+  ]) {
+    r = await change(action, value, scorer);
+    assert.equal(r.status, 200, action + ': ' + (await r.text()));
+  }
+  const final = (await read()).state.nights[0].matches.find((m) => m.champ);
+  r = await change(
+    'score',
+    { nightId: n.id, matchId: final.id, score: [21, 10] },
+    scorer,
+  );
+  assert.equal(r.status, 200, await r.text());
+  r = await change('championshipFormat', { nightId: n.id, bestOf: 3 }, scorer);
+  assert.equal(r.status, 200, await r.text());
+  const finals = (await read()).state.nights[0].matches.filter((m) => m.champ);
+  assert.equal(finals.length, 3);
+  assert.equal(finals[0].id, final.id);
+  assert.deepEqual(finals[0].score, [21, 10]);
+  r = await change(
+    'score',
+    { nightId: n.id, matchId: finals[1].id, score: [21, 10] },
+    scorer,
+  );
+  assert.equal(r.status, 200, await r.text());
+  r = await change('finish', { nightId: n.id }, scorer);
+  assert.equal(r.status, 200, await r.text());
   r = await change(
     'score',
     { nightId: n.id, matchId: m.id, score: [10, 21] },
-    admin,
-  );
-  assert.equal(r.status, 200, await r.text());
-  r = await change('finish', { nightId: n.id });
-  assert.equal(r.status, 200, await r.text());
-  r = await change(
-    'score',
-    { nightId: n.id, matchId: n.matches[1].id, score: [21, 10] },
     scorer,
   );
-  assert.equal(r.status, 403);
+  assert.equal(r.status, 200, await r.text());
   const history = (await read()).state;
   r = await post(
     '/api/managers',
@@ -176,7 +196,7 @@ try {
   assert.deepEqual((await read()).state, history);
   assert.equal((await read()).superAdmin, true);
   console.log(
-    'PASS: manager first scores, admin-only corrections/game changes/resets, manager CRUD permissions, password/session revocation, nonblank-only passwords, admin protection, unchanged history after account changes and restart.',
+    'PASS: manager scoring and night controls, preserved championship expansion, admin-only resets/deletion, manager CRUD permissions, password/session revocation, nonblank-only passwords, admin protection, unchanged history after account changes and restart.',
   );
 } finally {
   await stop();

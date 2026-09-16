@@ -4,7 +4,7 @@ Phone-friendly rotating doubles tracker built with React, Vinext and Cloudflare 
 
 ## First use
 
-Open the site, select **Set up manager**, and enter the private `SETUP_KEY` from your local `.env.local` file. Choose your own username and any nonblank password. The setup key only permits the first manager account; later accounts require an existing manager to sign in. Never commit or share the setup key. Managers can add other managers using **Add manager**.
+Open the site, select **Set up manager**, and enter the private `SETUP_KEY` from your local `.env.local` file. Use `admin` as the first username and any nonblank password. The setup key only permits the first manager account; later accounts require the super admin to sign in. Never commit or share the setup key. The super admin can add accounts using **Manage managers**.
 
 Add players, start a night, select attendees and assign tables (or randomize the selected players), then record match results. Attendance changes rebuild unscored games. A replacement can inherit scheduling credit; completed results and qualification wins stay personal. Start the championship to end unplayed table games, select or override the suggested finalists, and choose one game or best of three. Finish the night to archive it. Scores can still be corrected from Past nights.
 
@@ -79,12 +79,15 @@ The existing account named `admin` is now the super admin; its password is uncha
 | View results, hide/show tables on own device | Yes | Yes |
 | Maintain roster and start a new night | Yes | Yes |
 | Enter the first score of an unscored match in an open night | Yes | Yes |
-| Edit/clear scores, score closed nights, reset career stats | No | Yes |
-| Change attendance, reshuffle, add matches, set finals, finish/rename/delete nights | No | Yes |
+| Edit/clear scores and score closed nights | Yes | Yes |
+| Reset career stats or delete nights | No | Yes |
+| Change attendance, reshuffle, add matches, set finals/format, finish/rename nights | Yes | Yes |
 | List/add/remove managers and change their passwords | No | Yes |
 
 Sign in as admin and choose **Manage managers**. Removing a manager or changing their password signs that account out. The admin account cannot be removed. Account removal does not delete players, matches or their recorded history. Passwords still only need to be nonblank.
 
 Permissions are enforced in API routes, using the stored state and authenticated session. No schema or data migration is needed. Upgrade the app container while retaining the existing data volume and backup first; do not use `down -v`.
 
-Validation: `tests/permissions-api.test.mjs` covers first-score permission, forbidden corrections and game mutations, manager administration, session revocation, and preserved history after account changes and restart. Run it with `PONG_TEST_PACKAGE_DIR` pointing to a built standalone folder containing the `drizzle` migrations. Browser visual QA for these controls was unavailable during implementation.
+Validation: `tests/permissions-api.test.mjs` covers manager scoring and night controls, championship expansion, forbidden resets and night deletion, manager administration, session revocation, and preserved history after account changes and restart. Run it with `PONG_TEST_PACKAGE_DIR` pointing to a built standalone folder containing the `drizzle` migrations. Browser visual QA for these controls was unavailable during implementation.
+
+Championship finalists default to highest + lowest night-start PR versus the middle two. Managers can change these teams before scoring. Use **Make best of 3** on an open night to extend a one-game final, including after its first result. Existing teams, match IDs, scores and PR results are retained. Titles are recalculated when a team reaches two wins. Shortening a series requires clearing any later scores first.
