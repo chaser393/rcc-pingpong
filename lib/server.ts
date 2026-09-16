@@ -42,7 +42,9 @@ export async function manager(req: Request) {
     ?.match(/(?:^|;\s*)pong_session=([^;]+)/)?.[1];
   if (!token) return null;
   return await db()
-    .prepare('SELECT username FROM sessions WHERE token = ? AND expires > ?')
+    .prepare(
+      'SELECT sessions.username FROM sessions JOIN managers ON managers.username = sessions.username WHERE token = ? AND expires > ?',
+    )
     .bind(await digest(token), Date.now())
     .first<{ username: string }>();
 }

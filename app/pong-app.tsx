@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import { Choice } from './choice';
 import NightSetup from './night-setup';
+import TablePanel from './table-panel';
+import ManagerPanel from './manager-panel';
 import {
   sortedRoster,
   defaultNightName,
@@ -66,7 +68,14 @@ export default function PongApp() {
     version: number;
     manager: string | null;
     needsSetup: boolean;
-  }>({ state: empty(), version: 0, manager: null, needsSetup: false });
+    superAdmin: boolean;
+  }>({
+    state: empty(),
+    version: 0,
+    manager: null,
+    needsSetup: false,
+    superAdmin: false,
+  });
   const [loaded, setLoaded] = useState(false),
     [error, setError] = useState(''),
     [message, setMessage] = useState(''),
@@ -92,6 +101,7 @@ export default function PongApp() {
     const next: any = await response.json();
     setData(next);
     setLoaded(true);
+    return next;
   }
   useEffect(() => {
     refresh().catch((e) => setError(e.message));
@@ -263,23 +273,25 @@ export default function PongApp() {
           <small>
             {pr.a} vs {pr.b} PR{m.score ? ` · ±${pr.points} each` : ''}
           </small>
-          {data.manager && !decided && (
-            <button
-              className="secondary"
-              disabled={busy}
-              onClick={() =>
-                open('score', {
-                  nightId: n.id,
-                  matchId: m.id,
-                  score: m.score?.map(String) ?? ['', ''],
-                  match: m,
-                  night: n,
-                })
-              }
-            >
-              {m.score ? 'Edit score' : 'Enter score'}
-            </button>
-          )}
+          {data.manager &&
+            !decided &&
+            (data.superAdmin || (!m.score && !n.closed)) && (
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() =>
+                  open('score', {
+                    nightId: n.id,
+                    matchId: m.id,
+                    score: m.score?.map(String) ?? ['', ''],
+                    match: m,
+                    night: n,
+                  })
+                }
+              >
+                {m.score ? 'Edit score' : 'Enter score'}
+              </button>
+            )}
         </div>
       </article>
     );
@@ -327,7 +339,7 @@ export default function PongApp() {
               {n.closed ? 'NIGHT COMPLETE' : 'ON THE TABLES'}
             </p>
             <h2>{n.name}</h2>
-            {data.manager && (
+            {data.superAdmin && (
               <button
                 className="secondary"
                 onClick={() =>
@@ -343,7 +355,7 @@ export default function PongApp() {
               {n.matches.filter((m) => m.score).length} games played
             </p>
           </div>
-          {data.manager && n.closed && (
+          {data.superAdmin && n.closed && (
             <button
               className="secondary danger"
               onClick={() =>
@@ -359,7 +371,7 @@ export default function PongApp() {
               Delete past night
             </button>
           )}
-          {data.manager && !n.closed && (
+          {data.superAdmin && !n.closed && (
             <div className="actions">
               <button
                 className="secondary"
@@ -411,14 +423,7 @@ export default function PongApp() {
         {(n.closed || championshipComplete(n)) && championship}
         <div className="table-grid">
           {tables.map((t) => (
-            <section className="table-panel" key={t}>
-              <div className="table-heading">
-                <div>
-                  <span className="eyebrow">ROTATING DOUBLES</span>
-                  <h3>Table {t.toString().padStart(2, '0')}</h3>
-                </div>
-                <Table2 size={30} />
-              </div>
+            <TablePanel key={`${n.id}:${t}`} nightId={n.id} table={t}>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -445,7 +450,7 @@ export default function PongApp() {
                   ))}
                 </TableBody>
               </Table>
-              {data.manager && !n.closed && (
+              {data.superAdmin && !n.closed && (
                 <div className="table-actions">
                   <button
                     className="secondary"
@@ -482,7 +487,7 @@ export default function PongApp() {
                   <p className="muted">No games assigned.</p>
                 )}
               </div>
-            </section>
+            </TablePanel>
           ))}
         </div>
         {!(n.closed || championshipComplete(n)) && championship}
@@ -531,9 +536,11 @@ export default function PongApp() {
           {data.manager ? (
             <>
               <span className="manager-name">{data.manager}</span>
-              <button className="secondary" onClick={() => open('manager')}>
-                Add manager
-              </button>
+              {data.superAdmin && (
+                <button className="secondary" onClick={() => open('managers')}>
+                  Manage managers
+                </button>
+              )}
               <button
                 className="secondary"
                 onClick={async () => {
@@ -551,7 +558,12 @@ export default function PongApp() {
           ) : (
             <button
               className="secondary"
-              onClick={() => open(data.needsSetup ? 'setup' : 'login')}
+              onClick={() =>
+                open(
+                  data.needsSetup ? 'setup' : 'login',
+                  data.needsSetup ? { username: 'admin' } : {},
+                )
+              }
             >
               <LockKeyhole size={16} />
               {data.needsSetup ? 'Set up manager' : 'Manager sign in'}
@@ -749,20 +761,22 @@ export default function PongApp() {
                         </p>
                       )}
                       <div className="actions player-actions">
-                        <button
-                          className="secondary"
-                          disabled={busy}
-                          onClick={() =>
-                            open('confirm', {
-                              action: 'resetPlayerStats',
-                              value: { id: p.id },
-                              title: `Reset ${p.name}’s stats?`,
-                              text: `Wins ${ranking[p.id].wins} → 0; losses ${ranking[p.id].losses} → 0; games ${ranking[p.id].games} → 0; championships ${ranking[p.id].championships} → 0; PR ${ranking[p.id].pr} → 500. Past matches, nightly standings and other players stay unchanged. Only results not already scored at this reset count toward new career totals. An active night keeps its frozen starting rank.`,
-                            })
-                          }
-                        >
-                          Reset stats
-                        </button>
+                        {data.superAdmin && (
+                          <button
+                            className="secondary"
+                            disabled={busy}
+                            onClick={() =>
+                              open('confirm', {
+                                action: 'resetPlayerStats',
+                                value: { id: p.id },
+                                title: `Reset ${p.name}’s stats?`,
+                                text: `Wins ${ranking[p.id].wins} → 0; losses ${ranking[p.id].losses} → 0; games ${ranking[p.id].games} → 0; championships ${ranking[p.id].championships} → 0; PR ${ranking[p.id].pr} → 500. Past matches, nightly standings and other players stay unchanged. Only results not already scored at this reset count toward new career totals. An active night keeps its frozen starting rank.`,
+                              })
+                            }
+                          >
+                            Reset stats
+                          </button>
+                        )}
                         <button
                           className="secondary"
                           disabled={busy}
@@ -881,6 +895,7 @@ export default function PongApp() {
                     login: 'Manager sign in',
                     setup: 'Create your first manager',
                     manager: 'Add a manager',
+                    managers: 'Manage managers',
                     player: form.id ? 'Edit player' : 'Add a player',
                     night: 'Set up tonight',
                     score: 'Record the result',
@@ -903,7 +918,7 @@ export default function PongApp() {
                     : modal === 'attendance'
                       ? 'Completed results stay with the people who played. Remaining games are rebuilt.'
                       : modal === 'setup'
-                        ? 'Use your private setup key, then choose a username and password.'
+                        ? 'Use your private setup key and choose a password for the admin account.'
                         : 'Changes are shared with everyone viewing the club.'}
             </DialogDescription>
           </DialogHeader>
@@ -911,6 +926,14 @@ export default function PongApp() {
             <p role="alert" className="notice error">
               {error}
             </p>
+          )}
+          {modal === 'managers' && data.superAdmin && (
+            <ManagerPanel
+              onChanged={async () => {
+                const d = await refresh();
+                if (!d.superAdmin) setModal('');
+              }}
+            />
           )}
           {['login', 'setup', 'manager'].includes(modal) && (
             <form onSubmit={auth} className="form">
