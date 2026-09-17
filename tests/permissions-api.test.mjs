@@ -102,6 +102,7 @@ try {
   assert.equal(r.status, 200, await r.text());
   const before = (await read()).state;
   for (const [action, value] of [
+    ['settings', { defaultTables: 1 }],
     ['resetPlayerStats', { id: ids[0] }],
     ['deleteNight', { nightId: n.id }],
     ['unknown', {}],
@@ -153,6 +154,14 @@ try {
     scorer,
   );
   assert.equal(r.status, 200, await r.text());
+  const unchangedNights = (await read()).state.nights;
+  r = await change('settings', { defaultTables: 1 }, admin);
+  assert.equal(r.status, 200, await r.text());
+  assert.equal((await read(scorer)).state.settings.defaultTables, 1);
+  assert.deepEqual((await read()).state.nights, unchangedNights);
+  r = await change('settings', { defaultTables: 3 }, admin);
+  assert.equal(r.status, 400);
+  assert.equal((await read()).state.settings.defaultTables, 1);
   const history = (await read()).state;
   r = await post(
     '/api/managers',

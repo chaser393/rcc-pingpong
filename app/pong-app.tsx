@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Choice } from './choice';
 import NightSetup from './night-setup';
+import ManagerGuide from './manager-guide';
 import TablePanel from './table-panel';
 import ManagerPanel from './manager-panel';
 import {
@@ -556,6 +557,21 @@ export default function PongApp() {
           {data.manager ? (
             <>
               <span className="manager-name">{data.manager}</span>
+              <button className="secondary" onClick={() => open('guide')}>
+                Manager guide
+              </button>
+              {data.superAdmin && (
+                <button
+                  className="secondary"
+                  onClick={() =>
+                    open('options', {
+                      defaultTables: String(s.settings?.defaultTables ?? 2),
+                    })
+                  }
+                >
+                  Options
+                </button>
+              )}
               {data.superAdmin && (
                 <button className="secondary" onClick={() => open('managers')}>
                   Manage managers
@@ -899,6 +915,7 @@ export default function PongApp() {
       </Tabs>
       <footer>
         ROTATING DOUBLES <span>Play to 21. Win by 2. Make it a night.</span>
+        <span>Creator Kor-Travis · Hosted by Chase-WolfFather</span>
       </footer>
       <Dialog
         open={!!modal && modal !== 'confirm'}
@@ -916,6 +933,8 @@ export default function PongApp() {
                     setup: 'Create your first manager',
                     manager: 'Add a manager',
                     managers: 'Manage managers',
+                    guide: 'Manager guide',
+                    options: 'Options',
                     player: form.id ? 'Edit player' : 'Add a player',
                     night: 'Set up tonight',
                     score: 'Record the result',
@@ -929,23 +948,53 @@ export default function PongApp() {
               }
             </DialogTitle>
             <DialogDescription>
-              {modal === 'login'
-                ? 'Managers can change players, nights, and results.'
-                : modal === 'score'
-                  ? 'Play to 21, win by 2. Any non-tied final score is accepted.'
-                  : modal === 'championship'
-                    ? 'The top two at each table are suggested. Resolve ties and swap players here. Starting the final ends unplayed table games.'
-                    : modal === 'attendance'
-                      ? 'Completed results stay with the people who played. Remaining games are rebuilt.'
-                      : modal === 'setup'
-                        ? 'Use your private setup key and choose a password for the admin account.'
-                        : 'Changes are shared with everyone viewing the club.'}
+              {modal === 'guide'
+                ? 'Quick instructions for running pingpong night.'
+                : modal === 'options'
+                  ? 'Defaults for new nights. Existing nights stay unchanged.'
+                  : modal === 'login'
+                    ? 'Managers can change players, nights, and results.'
+                    : modal === 'score'
+                      ? 'Play to 21, win by 2. Any non-tied final score is accepted.'
+                      : modal === 'championship'
+                        ? 'The top two at each table are suggested. Resolve ties and swap players here. Starting the final ends unplayed table games.'
+                        : modal === 'attendance'
+                          ? 'Completed results stay with the people who played. Remaining games are rebuilt.'
+                          : modal === 'setup'
+                            ? 'Use your private setup key and choose a password for the admin account.'
+                            : 'Changes are shared with everyone viewing the club.'}
             </DialogDescription>
           </DialogHeader>
           {error && (
             <p role="alert" className="notice error">
               {error}
             </p>
+          )}
+          {modal === 'guide' && <ManagerGuide />}
+          {modal === 'options' && data.superAdmin && (
+            <form
+              className="form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                run('settings', { defaultTables: Number(form.defaultTables) });
+              }}
+            >
+              <Choice
+                label="Default tables for new nights"
+                value={form.defaultTables}
+                onChange={(value) => patch('defaultTables', value)}
+                options={[
+                  { value: '1', label: 'One table' },
+                  { value: '2', label: 'Two tables' },
+                ]}
+              />
+              <p className="muted">
+                This default applies to all managers. You can still change it
+                when setting up a night. Fewer than eight players automatically
+                use one table.
+              </p>
+              <button disabled={busy}>Save options</button>
+            </form>
           )}
           {modal === 'managers' && data.superAdmin && (
             <ManagerPanel
@@ -1037,6 +1086,7 @@ export default function PongApp() {
             <NightSetup
               players={visiblePlayers}
               initialName={form.name}
+              defaultTables={s.settings?.defaultTables ?? 2}
               ranks={Object.fromEntries(
                 Object.entries(ranking).map(([id, stats]) => [id, stats.pr]),
               )}
