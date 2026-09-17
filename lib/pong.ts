@@ -40,7 +40,11 @@ export type Night = {
   bestOf: number;
   changes?: NightChange[];
 };
-export type State = { players: Player[]; nights: Night[] };
+export type State = {
+  players: Player[];
+  nights: Night[];
+  settings?: { defaultTables: 1 | 2 };
+};
 export const empty = (): State => ({ players: [], nights: [] });
 export const uid = () => crypto.randomUUID();
 export function adjustment(m: Match, n: Night) {
@@ -261,7 +265,11 @@ function applyChange(s: State, action: string, v: any): State {
     if (!s.players.some((p) => p.id === id && !p.deleted))
       throw Error('Player not found.');
   };
-  if (action === 'player') {
+  if (action === 'settings') {
+    if (![1, 2].includes(v.defaultTables))
+      throw Error('Choose one or two tables.');
+    s.settings = { ...s.settings, defaultTables: v.defaultTables };
+  } else if (action === 'player') {
     const name = String(v.name || '').trim();
     if (!name || name.length > 80)
       throw Error('Enter a player name (up to 80 characters).');

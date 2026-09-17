@@ -7,12 +7,14 @@ import { Shuffle } from 'lucide-react';
 export default function NightSetup({
   players,
   initialName,
+  defaultTables = 2,
   ranks,
   busy,
   onStart,
 }: {
   players: Player[];
   initialName: string;
+  defaultTables?: 1 | 2;
   ranks: Record<string, number>;
   busy: boolean;
   onStart: (value: {
@@ -23,7 +25,7 @@ export default function NightSetup({
   const [step, setStep] = useState(1),
     [name, setName] = useState(initialName),
     [attendees, setAttendees] = useState<string[]>([]),
-    [tables, setTables] = useState('2'),
+    [tables, setTables] = useState(String(defaultTables)),
     [assignments, setAssignments] = useState<Record<string, string>>({});
   const selected = players.filter((p) => attendees.includes(p.id));
   const count = (table: string) =>

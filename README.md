@@ -91,3 +91,9 @@ Permissions are enforced in API routes, using the stored state and authenticated
 Validation: `tests/permissions-api.test.mjs` covers manager scoring and night controls, championship expansion, forbidden resets and night deletion, manager administration, session revocation, and preserved history after account changes and restart. Run it with `PONG_TEST_PACKAGE_DIR` pointing to a built standalone folder containing the `drizzle` migrations. Browser visual QA for these controls was unavailable during implementation.
 
 Championship finalists default to highest + lowest night-start PR versus the middle two. Managers can change these teams before scoring. Use **Make best of 3** on an open night to extend a one-game final, including after its first result. Existing teams, match IDs, scores and PR results are retained. Titles are recalculated when a team reaches two wins. Shortening a series requires clearing any later scores first.
+
+## Manager guide and defaults
+
+Signed-in managers can open **Manager guide** in the header for instructions covering roster, attendance, scores, extra matches, championships and finishing nights. The footer credits Creator Kor-Travis and Hosted by Chase-WolfFather.
+
+The super admin can open **Options** to save a shared one- or two-table default for new nights. Existing installs default to two tables until changed. Managers can override the default during setup; fewer than eight attendees still use one table. Settings are saved in the existing database state, so keep the same Docker data volume when upgrading. Existing nights and results are unchanged.
