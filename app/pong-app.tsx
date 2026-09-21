@@ -12,6 +12,8 @@ import {
   nightDeletionImpact,
   championshipComplete,
   pairFinalistsByPR,
+  teamSize,
+  suggestedFinalists,
   latestAttendance,
 } from '@/lib/pong';
 import {
@@ -223,23 +225,7 @@ export default function PongApp() {
     manage('night', { name: defaultNightName() });
   }
   function finalists(n: Night) {
-    const tables = [...new Set(n.members.map((p) => p.table))].sort();
-    let ids =
-      tables.length > 1
-        ? tables.flatMap((t) =>
-            standings(n, t)
-              .filter((p) => p.active)
-              .slice(0, 2)
-              .map((p) => p.id),
-          )
-        : standings(n, tables[0])
-            .filter((p) => p.active)
-            .slice(0, 4)
-            .map((p) => p.id);
-    if (n.matches.some((m) => m.champ)) {
-      const m = n.matches.find((m) => m.champ)!;
-      ids = [...m.a, ...m.b];
-    } else ids = pairFinalistsByPR(ids, n.ranks);
+    const ids = suggestedFinalists(n);
     manage('championship', {
       nightId: n.id,
       ids,
@@ -330,7 +316,7 @@ export default function PongApp() {
                   action: 'championshipFormat',
                   value: { nightId: n.id, bestOf: 3 },
                   title: 'Play best two out of three?',
-                  text: 'Keep the teams and first game score, and add two games. The championship will require two wins.',
+                  text: 'Keep the finalists and first game score, and add two games. The championship will require two wins.',
                 })
               }
             >
@@ -343,7 +329,8 @@ export default function PongApp() {
         </div>
         {winner >= 0 && (
           <p className="winner">
-            <Trophy size={20} /> Champions:{' '}
+            <Trophy size={20} />{' '}
+            {n.mode === 'singles' ? 'Champion:' : 'Champions:'}{' '}
             {(winner === 0 ? finals[0].a : finals[0].b).map(name).join(' + ')}
           </p>
         )}
@@ -360,6 +347,9 @@ export default function PongApp() {
               {n.closed ? 'NIGHT COMPLETE' : 'ON THE TABLES'}
             </p>
             <h2>{n.name}</h2>
+            <p className="muted">
+              {n.mode === 'singles' ? 'Singles · 1 vs 1' : 'Doubles · 2 vs 2'}
+            </p>
             {data.manager && (
               <button
                 className="secondary"
@@ -444,7 +434,12 @@ export default function PongApp() {
         {(n.closed || championshipComplete(n)) && championship}
         <div className="table-grid">
           {tables.map((t) => (
-            <TablePanel key={`${n.id}:${t}`} nightId={n.id} table={t}>
+            <TablePanel
+              key={`${n.id}:${t}`}
+              nightId={n.id}
+              table={t}
+              singles={n.mode === 'singles'}
+            >
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -478,10 +473,12 @@ export default function PongApp() {
                     disabled={
                       busy ||
                       n.members.filter((p) => p.active && p.table === t)
-                        .length < 4
+                        .length <
+                        teamSize(n) * 2
                     }
                     onClick={() =>
                       open('addMatch', {
+                        size: teamSize(n),
                         nightId: n.id,
                         table: t,
                         ids: suggestExtraMatch(n, t),
@@ -494,11 +491,11 @@ export default function PongApp() {
               )}
               <div className="matches">
                 {n.members.filter((p) => p.table === t && p.active).length <
-                  4 &&
+                  teamSize(n) * 2 &&
                   !n.closed && (
                     <p className="notice">
-                      Fewer than four active players. Add or move players to
-                      continue.
+                      Fewer than {teamSize(n) * 2} active players. Add or move
+                      players to continue.
                     </p>
                   )}
                 {n.matches
@@ -848,7 +845,8 @@ export default function PongApp() {
             <p>
               Starting rank: 500. Team totals use ranks frozen at the start of
               each night. Every result, including the championship, counts. Each
-              teammate receives the full change.
+              player receives the full change. Singles uses each player’s PR
+              with the same thresholds and shares career stats with doubles.
             </p>
             <Table>
               <TableHeader>
@@ -895,7 +893,8 @@ export default function PongApp() {
                   key={n.id}
                   onClick={() => setHistoryId(n.id)}
                 >
-                  {n.name} · {new Date(n.date).toLocaleDateString()}
+                  {n.name} · {n.mode === 'singles' ? 'Singles' : 'Doubles'} ·{' '}
+                  {new Date(n.date).toLocaleDateString()}
                 </button>
               ))}
           </div>
@@ -914,7 +913,7 @@ export default function PongApp() {
         </TabsContent>
       </Tabs>
       <footer>
-        ROTATING DOUBLES <span>Play to 21. Win by 2. Make it a night.</span>
+        ROUND ROBIN PINGPONG <span>Play to 21. Win by 2. Make it a night.</span>
         <span>Creator Kor-Travis · Hosted by Chase-WolfFather</span>
       </footer>
       <Dialog
@@ -957,7 +956,9 @@ export default function PongApp() {
                     : modal === 'score'
                       ? 'Play to 21, win by 2. Any non-tied final score is accepted.'
                       : modal === 'championship'
-                        ? 'The top two at each table are suggested. Resolve ties and swap players here. Starting the final ends unplayed table games.'
+                        ? current?.mode === 'singles'
+                          ? 'The top player from each table is suggested, or the top two at one table. Resolve ties and change finalists here. Starting the final ends unplayed table games.'
+                          : 'The top two at each table are suggested. Resolve ties and swap players here. Starting the final ends unplayed table games.'
                         : modal === 'attendance'
                           ? 'Completed results stay with the people who played. Remaining games are rebuilt.'
                           : modal === 'setup'
@@ -990,8 +991,8 @@ export default function PongApp() {
               />
               <p className="muted">
                 This default applies to all managers. You can still change it
-                when setting up a night. Fewer than eight players automatically
-                use one table.
+                when setting up a night. One table is used when there are fewer
+                than four singles players or eight doubles players.
               </p>
               <button disabled={busy}>Save options</button>
             </form>
@@ -1127,13 +1128,18 @@ export default function PongApp() {
               }}
             >
               <p>
-                Choose two teams for the extra game. Suggested players have the
-                fewest games played or scheduled at this table.
+                Choose {form.size === 1 ? 'two players' : 'two teams'} for the
+                extra game. Suggested players have the fewest games played or
+                scheduled at this table.
               </p>
-              {[0, 1, 2, 3].map((i) => (
+              {Array.from({ length: form.size * 2 }, (_, i) => i).map((i) => (
                 <Choice
                   key={i}
-                  label={`Team ${i < 2 ? 'A' : 'B'} · Player ${(i % 2) + 1}`}
+                  label={
+                    form.size === 1
+                      ? `Player ${i + 1}`
+                      : `Team ${i < 2 ? 'A' : 'B'} · Player ${(i % 2) + 1}`
+                  }
                   value={form.ids[i] ?? ''}
                   onChange={(value) =>
                     patch(
@@ -1165,7 +1171,9 @@ export default function PongApp() {
               >
                 Randomize suggestion
               </button>
-              <button disabled={busy || new Set(form.ids).size !== 4}>
+              <button
+                disabled={busy || new Set(form.ids).size !== form.size * 2}
+              >
                 Add match
               </button>
             </form>
@@ -1332,26 +1340,32 @@ export default function PongApp() {
             >
               {form.scored ? (
                 <p>
-                  Team A: {form.ids.slice(0, 2).map(name).join(' + ')} · Team B:{' '}
-                  {form.ids.slice(2).map(name).join(' + ')}
+                  {form.ids.slice(0, teamSize(current!)).map(name).join(' + ')}{' '}
+                  vs {form.ids.slice(teamSize(current!)).map(name).join(' + ')}
                 </p>
               ) : (
-                [0, 1, 2, 3].map((i) => (
-                  <Choice
-                    key={i}
-                    label={`Team ${i < 2 ? 'A' : 'B'} · Player ${(i % 2) + 1}`}
-                    value={form.ids[i] ?? ''}
-                    onChange={(v) => {
-                      const ids = [...form.ids];
-                      ids[i] = v;
-                      patch('ids', ids);
-                    }}
-                    options={current!.members.map((m) => ({
-                      value: m.id,
-                      label: name(m.id),
-                    }))}
-                  />
-                ))
+                Array.from({ length: teamSize(current!) * 2 }, (_, i) => i).map(
+                  (i) => (
+                    <Choice
+                      key={i}
+                      label={
+                        current?.mode === 'singles'
+                          ? `Finalist ${i + 1}`
+                          : `Team ${i < 2 ? 'A' : 'B'} · Player ${(i % 2) + 1}`
+                      }
+                      value={form.ids[i] ?? ''}
+                      onChange={(v) => {
+                        const ids = [...form.ids];
+                        ids[i] = v;
+                        patch('ids', ids);
+                      }}
+                      options={current!.members.map((m) => ({
+                        value: m.id,
+                        label: name(m.id),
+                      }))}
+                    />
+                  ),
+                )
               )}
               <Choice
                 label="Format"
@@ -1363,11 +1377,11 @@ export default function PongApp() {
                 ]}
               />
               <p className="muted">
-                Qualification uses individual table wins. Default teams pair the
-                highest and lowest night-start PR, with the middle two together.
-                Ties and team changes are yours to decide before scoring.
+                {current?.mode === 'singles'
+                  ? 'Qualification uses individual table wins. Choose two finalists; resolve ties or change either player before scoring.'
+                  : 'Qualification uses individual table wins. Default teams pair the highest and lowest night-start PR, with the middle two together. Ties and team changes are yours to decide before scoring.'}
               </p>
-              {!form.scored && (
+              {!form.scored && current?.mode !== 'singles' && (
                 <button
                   type="button"
                   className="secondary"

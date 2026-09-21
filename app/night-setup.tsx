@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Choice } from './choice';
-import { Player, assignTables, assignTablesByPR } from '@/lib/pong';
+import { Player, GameMode, assignTables, assignTablesByPR } from '@/lib/pong';
 import { Shuffle } from 'lucide-react';
 export default function NightSetup({
   players,
@@ -19,25 +19,30 @@ export default function NightSetup({
   busy: boolean;
   onStart: (value: {
     name: string;
+    mode: GameMode;
     members: { id: string; table: number }[];
   }) => void;
 }) {
   const [step, setStep] = useState(1),
+    [mode, setMode] = useState<GameMode>('doubles'),
     [name, setName] = useState(initialName),
     [attendees, setAttendees] = useState<string[]>([]),
     [tables, setTables] = useState(String(defaultTables)),
     [assignments, setAssignments] = useState<Record<string, string>>({});
+  const minimum = mode === 'singles' ? 2 : 4;
   const selected = players.filter((p) => attendees.includes(p.id));
   const count = (table: string) =>
     selected.filter((p) => assignments[p.id] === table).length;
   const valid =
-    selected.length >= 4 &&
-    [1, ...(tables === '2' ? [2] : [])].every((t) => count(String(t)) >= 4) &&
+    selected.length >= minimum &&
+    [1, ...(tables === '2' ? [2] : [])].every(
+      (t) => count(String(t)) >= minimum,
+    ) &&
     selected.every((p) =>
       ['1', ...(tables === '2' ? ['2'] : [])].includes(assignments[p.id]),
     );
   function next() {
-    const total = selected.length < 8 ? '1' : tables;
+    const total = selected.length < minimum * 2 ? '1' : tables;
     setTables(total);
     setAssignments(
       assignTablesByPR(
@@ -54,10 +59,11 @@ export default function NightSetup({
       onSubmit={(e) => {
         e.preventDefault();
         if (step === 1) {
-          if (selected.length >= 4) next();
+          if (selected.length >= minimum) next();
         } else if (valid)
           onStart({
             name,
+            mode,
             members: selected.map((p) => ({
               id: p.id,
               table: Number(assignments[p.id]),
@@ -82,6 +88,24 @@ export default function NightSetup({
           onChange={(e) => setName(e.target.value)}
         />
       </label>
+      {step === 1 && (
+        <Choice
+          label="Tournament format"
+          value={mode}
+          onChange={(value) => setMode(value as GameMode)}
+          options={[
+            { value: 'doubles', label: 'Doubles · 2 vs 2' },
+            { value: 'singles', label: 'Singles · 1 vs 1' },
+          ]}
+        />
+      )}
+      {step === 1 && (
+        <p className="muted">
+          {mode === 'singles'
+            ? 'Each player faces every other player at their table once. Odd player counts are welcome.'
+            : 'Rotating teammates round robin.'}
+        </p>
+      )}
       {step === 1 ? (
         <>
           <div className="row">
@@ -134,10 +158,10 @@ export default function NightSetup({
             </div>
           )}
           <p className="muted">
-            Choose at least four players. Hidden players can be unhidden from
-            the roster.
+            Choose at least {minimum} players. Hidden players can be unhidden
+            from the roster.
           </p>
-          <button disabled={busy || selected.length < 4}>
+          <button disabled={busy || selected.length < minimum}>
             Next: assign tables
           </button>
         </>
@@ -168,7 +192,7 @@ export default function NightSetup({
             }}
             options={[
               { value: '1', label: 'One table' },
-              ...(selected.length >= 8
+              ...(selected.length >= minimum * 2
                 ? [{ value: '2', label: 'Two tables' }]
                 : []),
             ]}
@@ -227,7 +251,7 @@ export default function NightSetup({
           <p className="muted">
             By PR: Table 1 gets the higher-ranked half and Table 2 the
             lower-ranked half. You can change any assignment or randomize
-            instead. Each table needs at least four players.
+            instead. Each table needs at least {minimum} players.
           </p>
           <button disabled={busy || !valid}>
             Start night & generate games

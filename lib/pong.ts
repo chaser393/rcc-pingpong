@@ -29,7 +29,9 @@ export type Member = {
   active: boolean;
   credit: number;
 };
+export type GameMode = 'singles' | 'doubles';
 export type Night = {
+  mode?: GameMode;
   id: string;
   name: string;
   date: string;
@@ -46,6 +48,8 @@ export type State = {
   settings?: { defaultTables: 1 | 2 };
 };
 export const empty = (): State => ({ players: [], nights: [] });
+export const teamSize = (n: Pick<Night, 'mode'>) =>
+  n.mode === 'singles' ? 1 : 2;
 export const uid = () => crypto.randomUUID();
 export function adjustment(m: Match, n: Night) {
   const a = m.a.reduce((v, id) => v + (n.ranks[id] ?? 500), 0),
@@ -124,6 +128,7 @@ export function schedule(n: Night, table: number) {
   const ids = n.members
     .filter((p) => p.active && p.table === table)
     .map((p) => p.id);
+  if (n.mode === 'singles') return singlesSchedule(n, table, ids);
   if (ids.length < 4) return [];
   const counts: Record<string, number> = {},
     partners = new Set<string>(),
@@ -202,6 +207,63 @@ export function schedule(n: Night, table: number) {
     const m: Match = { id: uid(), table, ...best, score: null, champ: false };
     result.push(m);
     record(m);
+  }
+  return result;
+}
+// One game per opponent pair; keep scored games when rebuilding after attendance changes.
+function singlesSchedule(n: Night, table: number, ids: string[]): Match[] {
+  if (ids.length < 2) return [];
+  const counts = Object.fromEntries(
+    ids.map((id) => [id, n.members.find((p) => p.id === id)!.credit]),
+  );
+  const played = new Set<string>();
+  let last: string[] = [];
+  for (const m of n.matches.filter(
+    (m) => !m.champ && m.table === table && m.score,
+  )) {
+    played.add(pair(m.a[0], m.b[0]));
+    for (const id of [...m.a, ...m.b]) if (id in counts) counts[id]++;
+    last = [...m.a, ...m.b];
+  }
+  const pending: string[][] = [];
+  for (let i = 0; i < ids.length; i++)
+    for (let j = i + 1; j < ids.length; j++)
+      if (!played.has(pair(ids[i], ids[j]))) pending.push([ids[i], ids[j]]);
+  const result: Match[] = [];
+  const add = ([a, b]: string[]) => {
+    result.push({
+      id: uid(),
+      table,
+      a: [a],
+      b: [b],
+      score: null,
+      champ: false,
+    });
+    counts[a]++;
+    counts[b]++;
+    last = [a, b];
+  };
+  while (pending.length) {
+    const costs = pending.map(
+      (group) =>
+        group.reduce(
+          (sum, id) => sum + counts[id] * 10 + Number(last.includes(id)) * 3,
+          0,
+        ) + Math.random(),
+    );
+    const index = costs.indexOf(Math.min(...costs));
+    add(pending.splice(index, 1)[0]);
+  }
+  // Late arrivals can need extra games to balance their nightly totals. With two
+  // active players every game increases both counts, so a prior gap cannot shrink.
+  const values = Object.values(counts);
+  const limit = ids.length * (Math.max(...values) - Math.min(...values) + 2);
+  for (let i = 0; ids.length > 2 && i < limit; i++) {
+    const ordered = ids
+      .map((id) => ({ id, tie: Math.random() }))
+      .sort((a, b) => counts[a.id] - counts[b.id] || a.tie - b.tie);
+    if (counts[ordered.at(-1)!.id] - counts[ordered[0].id] <= 1) break;
+    add(ordered.slice(0, 2).map((p) => p.id));
   }
   return result;
 }
@@ -319,13 +381,14 @@ function applyChange(s: State, action: string, v: any): State {
     s.nights = s.nights.filter((x) => x.id !== n.id);
   } else if (action === 'addMatch') {
     const n = openNight();
+    const size = teamSize(n);
     if (
       ![1, 2].includes(v.table) ||
       !Array.isArray(v.ids) ||
-      v.ids.length !== 4 ||
-      new Set(v.ids).size !== 4
+      v.ids.length !== size * 2 ||
+      new Set(v.ids).size !== size * 2
     )
-      throw Error('Choose four different players and a table.');
+      throw Error(`Choose ${size * 2} different players and a table.`);
     for (const id of v.ids)
       if (
         !n.members.some((p) => p.id === id && p.active && p.table === v.table)
@@ -334,8 +397,8 @@ function applyChange(s: State, action: string, v: any): State {
     n.matches.push({
       id: uid(),
       table: v.table,
-      a: v.ids.slice(0, 2),
-      b: v.ids.slice(2),
+      a: v.ids.slice(0, size),
+      b: v.ids.slice(size),
       champ: false,
       score: null,
     });
@@ -362,8 +425,12 @@ function applyChange(s: State, action: string, v: any): State {
   } else if (action === 'night') {
     if (s.nights.some((n) => !n.closed))
       throw Error('Finish the current night first.');
-    if (!Array.isArray(v.members) || v.members.length < 4)
-      throw Error('Choose at least four players.');
+    const mode = v.mode ?? 'doubles';
+    if (!['singles', 'doubles'].includes(mode))
+      throw Error('Choose singles or doubles.');
+    const minimum = mode === 'singles' ? 2 : 4;
+    if (!Array.isArray(v.members) || v.members.length < minimum)
+      throw Error(`Choose at least ${minimum} players.`);
     const seen = new Set();
     for (const p of v.members) {
       existing(p.id);
@@ -373,13 +440,14 @@ function applyChange(s: State, action: string, v: any): State {
     }
     for (const t of [1, 2]) {
       const count = v.members.filter((m: any) => m.table === t).length;
-      if (count > 0 && count < 4)
-        throw Error('Each active table needs at least four players.');
+      if (count > 0 && count < minimum)
+        throw Error(`Each active table needs at least ${minimum} players.`);
     }
     const ranks = Object.fromEntries(
       Object.entries(stats(s)).map(([id, x]) => [id, x.pr]),
     );
     const n: Night = {
+      mode,
       id: uid(),
       name: String(v.name || 'Pong night').slice(0, 80),
       date: new Date().toISOString(),
@@ -485,15 +553,16 @@ function applyChange(s: State, action: string, v: any): State {
     reshuffle(n);
   } else if (action === 'championship') {
     const n = openNight();
+    const size = teamSize(n);
     if (n.matches.some((m) => m.champ && m.score))
       throw Error('Clear championship scores before changing finalists.');
     if (
       ![1, 3].includes(v.bestOf) ||
       !Array.isArray(v.ids) ||
-      v.ids.length !== 4 ||
-      new Set(v.ids).size !== 4
+      v.ids.length !== size * 2 ||
+      new Set(v.ids).size !== size * 2
     )
-      throw Error('Choose four different finalists.');
+      throw Error(`Choose ${size * 2} different finalists.`);
     for (const id of v.ids)
       if (!n.members.some((p) => p.id === id))
         throw Error('Finalists must have attended this night.');
@@ -503,8 +572,8 @@ function applyChange(s: State, action: string, v: any): State {
       n.matches.push({
         id: uid(),
         table: 0,
-        a: v.ids.slice(0, 2),
-        b: v.ids.slice(2),
+        a: v.ids.slice(0, size),
+        b: v.ids.slice(size),
         score: null,
         champ: true,
       });
@@ -572,6 +641,7 @@ export function apply(
     if (!previous) {
       details.push(
         `Night: ${n.name}`,
+        `Format: ${n.mode === 'singles' ? 'Singles round robin' : 'Rotating doubles'}`,
         `Players: ${n.members.map((m) => `${name(m.id)} (Table ${m.table})`).join(', ')}`,
       );
     } else {
@@ -659,7 +729,7 @@ export function suggestExtraMatch(n: Night, table: number) {
   return Object.keys(counts)
     .map((id) => ({ id, tie: Math.random() }))
     .sort((a, b) => counts[a.id] - counts[b.id] || a.tie - b.tie)
-    .slice(0, 4)
+    .slice(0, teamSize(n) * 2)
     .map((p) => p.id);
 }
 export function nightDeletionImpact(s: State, nightId: string) {
@@ -715,4 +785,19 @@ export function pairFinalistsByPR(
   if (ids.length !== 4) return [...ids];
   const sorted = [...ids].sort((a, b) => (ranks[b] ?? 500) - (ranks[a] ?? 500));
   return [sorted[0], sorted[3], sorted[1], sorted[2]];
+}
+
+export function suggestedFinalists(n: Night) {
+  const final = n.matches.find((m) => m.champ);
+  if (final) return [...final.a, ...final.b];
+  const tables = [
+    ...new Set(n.members.filter((p) => p.active).map((p) => p.table)),
+  ].sort();
+  const ids = tables.flatMap((t) =>
+    standings(n, t)
+      .filter((p) => p.active)
+      .slice(0, teamSize(n) * (tables.length === 1 ? 2 : 1))
+      .map((p) => p.id),
+  );
+  return n.mode === 'singles' ? ids : pairFinalistsByPR(ids, n.ranks);
 }
