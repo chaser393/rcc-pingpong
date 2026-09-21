@@ -13,15 +13,15 @@ const steps = [
   ],
   [
     'Record or correct a match score',
-    'Find the match at its table and choose Enter score. Enter both teams’ final scores, then Save final score. Use Edit score to correct a result. Normally play to 21 and win by two; the app accepts any non-tied final score.',
+    'Find the match at its table and choose Enter score. Enter both players’ scores for singles or both teams’ scores for doubles, then Save final score. Use Edit score to correct a result. Normally play to 21 and win by two; the app accepts any non-tied final score.',
   ],
   [
     'Add more matches',
-    'Before the championship, choose Add match under the table. Review the suggested players or select your own two teams, then Add match. Reshuffle rebuilds remaining unplayed games while keeping completed scores.',
+    'Before the championship, choose Add match under the table. Review the suggested players or select two players for singles or two teams for doubles, then Add match. Reshuffle rebuilds remaining unplayed games while keeping completed scores.',
   ],
   [
     'Start the championship',
-    'Choose Championship. Doubles suggests the top two players from each table. Singles suggests the top player from each table, or the top two with one table. Resolve ties yourself and change any finalist using the player selectors. Default doubles teams pair the highest and lowest night-start PR against the middle two. Choose one game or best two out of three, then Set finalists. Unplayed table games are removed. Score finals in order. Make best of 3 can extend a one-game final before the night is finished, keeping its first score.',
+    'Choose Championship. Doubles suggests the top two players from each table. Singles suggests the player with the most table wins from each table, or the top two by wins with one table. Resolve ties yourself and change any finalist using the player selectors. Default doubles teams pair the highest and lowest night-start PR against the middle two. Choose one game or best two out of three, then Set finalists. Unplayed table games are removed. Score finals in order. Make best of 3 can extend a one-game final before the night is finished, keeping its first score.',
   ],
   [
     'End the night',
@@ -47,6 +47,49 @@ export default function ManagerGuide() {
         Sign in as a manager to use these controls. Attendance changes and
         reshuffling are available before the championship starts.
       </p>
+      <details>
+        <summary>How singles matches are scheduled</summary>
+        <p>
+          At the start of a singles night, everyone plays every other player at
+          their own table once. For example, five players need ten matches, with
+          four matches per player. Players at different tables meet only in the
+          championship unless you move them between tables.
+        </p>
+        <p>The schedule aims to:</p>
+        <ol className="list-decimal pl-6 space-y-2">
+          <li>Cover every opponent pairing with the fewest matches.</li>
+          <li>
+            Give earlier turns to players with fewer games played or already
+            scheduled.
+          </li>
+          <li>
+            Reduce back-to-back matches where possible. Rest between games is
+            not guaranteed.
+          </li>
+          <li>
+            Randomize otherwise similar choices. PR does not decide match order.
+          </li>
+        </ol>
+        <p>
+          When attendance changes or you reshuffle, completed scores stay.
+          Remaining matches are rebuilt for the current players. Completed
+          pairings at that table are not repeated for round-robin coverage, but
+          extra repeat matches may be added to bring current players’ scheduling
+          totals within one game of each other. With only two active players, an
+          existing gap cannot shrink because each match adds a game to both.
+        </p>
+        <p>
+          A replacement can inherit scheduling credit to help balance the
+          rotation. Their personal wins, losses, games played and PR stay
+          separate from the departing player’s results.
+        </p>
+        <p>
+          Singles uses the same PR rules and career stats as doubles, comparing
+          each player’s rank frozen at the start of the night. Championships
+          suggest the top player by wins from each table, or the top two at one
+          table. Managers resolve ties and can change either finalist.
+        </p>
+      </details>
       {steps.map(([title, text], i) => (
         <details key={title}>
           <summary>
