@@ -97,3 +97,11 @@ Championship finalists default to highest + lowest night-start PR versus the mid
 Signed-in managers can open **Manager guide** in the header for instructions covering roster, attendance, scores, extra matches, championships and finishing nights. The footer credits Creator Kor-Travis and Hosted by Chase-WolfFather.
 
 The super admin can open **Options** to save a shared one- or two-table default for new nights. Existing installs default to two tables until changed. Managers can override the default during setup; fewer than eight attendees still use one table. Settings are saved in the existing database state, so keep the same Docker data volume when upgrading. Existing nights and results are unchanged.
+
+## Singles tournaments
+
+During player selection, choose **Tournament format: Singles - 1 vs 1** or keep Doubles. Each table needs two singles players (four for doubles); odd counts are supported. Singles schedules every pair at the same table exactly once for a fresh night. After attendance changes, completed scores stay and remaining pairings are rebuilt; extra games may be added to balance current players' totals, including replacement scheduling credit. With only two active players, an existing games-played gap cannot shrink.
+
+Singles shares existing career stats and PR rules, using each player's frozen starting PR. Championships suggest one player per table, or the top two at a single table, based on wins. Managers resolve ties and can override finalists. One-game/best-of-three finals, extra matches, attendance changes and score corrections work in either format. A night's format is chosen at creation; old nights without a format remain doubles. Existing data needs no migration.
+
+`tests/singles.test.mjs` checks schedules for 2-14 players, PR/stats, attendance/replacements, extra matches, finals and legacy doubles; the permission API test covers a persisted singles night alongside existing doubles history.

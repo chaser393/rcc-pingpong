@@ -154,6 +154,52 @@ try {
     scorer,
   );
   assert.equal(r.status, 200, await r.text());
+  const doublesHistory = (await read()).state.nights;
+  r = await change(
+    'night',
+    {
+      name: 'Singles API test',
+      mode: 'singles',
+      members: ids.slice(0, 3).map((id) => ({ id, table: 1 })),
+    },
+    scorer,
+  );
+  assert.equal(r.status, 200, await r.text());
+  const singles = (await read()).state.nights.at(-1);
+  assert.equal(singles.mode, 'singles');
+  assert.equal(singles.matches.length, 3);
+  assert.ok(singles.matches.every((m) => m.a.length === 1 && m.b.length === 1));
+  r = await change(
+    'score',
+    { nightId: singles.id, matchId: singles.matches[0].id, score: [21, 10] },
+    scorer,
+  );
+  assert.equal(r.status, 200, await r.text());
+  r = await change(
+    'addMatch',
+    { nightId: singles.id, table: 1, ids: ids.slice(0, 2) },
+    scorer,
+  );
+  assert.equal(r.status, 200, await r.text());
+  r = await change(
+    'championship',
+    { nightId: singles.id, ids: ids.slice(0, 2), bestOf: 1 },
+    scorer,
+  );
+  assert.equal(r.status, 200, await r.text());
+  const singlesFinal = (await read()).state.nights
+    .at(-1)
+    .matches.find((m) => m.champ);
+  assert.equal(singlesFinal.a.length, 1);
+  r = await change(
+    'score',
+    { nightId: singles.id, matchId: singlesFinal.id, score: [21, 10] },
+    scorer,
+  );
+  assert.equal(r.status, 200, await r.text());
+  r = await change('finish', { nightId: singles.id }, scorer);
+  assert.equal(r.status, 200, await r.text());
+  assert.deepEqual((await read()).state.nights.slice(0, -1), doublesHistory);
   const unchangedNights = (await read()).state.nights;
   r = await change('settings', { defaultTables: 1 }, admin);
   assert.equal(r.status, 200, await r.text());

@@ -4,10 +4,12 @@ import { Eye, EyeOff } from 'lucide-react';
 
 export default function TablePanel({
   nightId,
+  singles = false,
   table,
   children,
 }: {
   nightId: string;
+  singles?: boolean;
   table: number;
   children: ReactNode;
 }) {
@@ -30,7 +32,9 @@ export default function TablePanel({
     <section className="table-panel">
       <div className="table-heading">
         <div>
-          <span className="eyebrow">ROTATING DOUBLES</span>
+          <span className="eyebrow">
+            {singles ? 'SINGLES ROUND ROBIN' : 'ROTATING DOUBLES'}
+          </span>
           <h3>Table {String(table).padStart(2, '0')}</h3>
         </div>
         <button

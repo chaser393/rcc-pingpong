@@ -5,7 +5,7 @@ const steps = [
   ],
   [
     'Start a night and select players',
-    'Choose Set up a night. Edit the date-based night name if you want, then check everyone attending. Choose Next: assign tables. You need at least four players per table. Review the assignments and choose Start night & generate games.',
+    'Choose Set up a night. Edit the date-based night name if you want, choose Doubles (2 vs 2) or Singles (1 vs 1), then check everyone attending. Choose Next: assign tables. You need at least four players per table for doubles or two for singles. Singles schedules everyone against every other player at their table. Review the assignments and choose Start night & generate games.',
   ],
   [
     'Sort players and assign tables',
@@ -21,7 +21,7 @@ const steps = [
   ],
   [
     'Start the championship',
-    'Choose Championship. The top two players from each table are suggested; resolve ties yourself and change any finalist using the player selectors. Default teams pair the highest and lowest night-start PR against the middle two. Choose one game or best two out of three, then Set finalists. Unplayed table games are removed. Score finals in order. Make best of 3 can extend a one-game final before the night is finished, keeping its first score.',
+    'Choose Championship. Doubles suggests the top two players from each table. Singles suggests the top player from each table, or the top two with one table. Resolve ties yourself and change any finalist using the player selectors. Default doubles teams pair the highest and lowest night-start PR against the middle two. Choose one game or best two out of three, then Set finalists. Unplayed table games are removed. Score finals in order. Make best of 3 can extend a one-game final before the night is finished, keeping its first score.',
   ],
   [
     'End the night',
@@ -63,4 +63,3 @@ export default function ManagerGuide() {
     </div>
   );
 }
-
