@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { unzipSync, strFromU8 } from 'fflate';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const cwd =
@@ -208,6 +209,57 @@ try {
   r = await change('settings', { defaultTables: 3 }, admin);
   assert.equal(r.status, 400);
   assert.equal((await read()).state.settings.defaultTables, 1);
+  r = await change(
+    'player',
+    {
+      id: ids[0],
+      name: '=SUM(1,2) & Player',
+      info: 'Public information',
+      notes: 'PRIVATE_EXPORT_SENTINEL',
+    },
+    scorer,
+  );
+  assert.equal(r.status, 200, await r.text());
+  for (const night of (await read()).state.nights) {
+    r = await change(
+      'renameNight',
+      { nightId: night.id, name: 'Players' },
+      scorer,
+    );
+    assert.equal(r.status, 200, await r.text());
+  }
+  const exportBefore = (await read()).state;
+  assert.equal((await fetch(url + '/api/export')).status, 403);
+  assert.equal(
+    (await fetch(url + '/api/export', { headers: { cookie: scorer } })).status,
+    403,
+  );
+  const download = await fetch(url + '/api/export', {
+    headers: { cookie: admin },
+  });
+  assert.equal(download.status, 200);
+  assert.match(download.headers.get('content-type'), /spreadsheetml/);
+  assert.match(
+    download.headers.get('content-disposition'),
+    /attachment; filename="rcc-pingpong-.*\.xlsx"/,
+  );
+  assert.equal(download.headers.get('cache-control'), 'no-store');
+  const bytes = new Uint8Array(await download.arrayBuffer());
+  const files = unzipSync(bytes);
+  const workbook = strFromU8(files['xl/workbook.xml']);
+  assert.match(workbook, /name="Players"/);
+  assert.match(workbook, /name="Players \(2\)"/);
+  assert.match(workbook, /name="Players \(3\)"/);
+  const text = Object.values(files)
+    .map((file) => strFromU8(file))
+    .join('');
+  assert.ok(!text.includes('PRIVATE_EXPORT_SENTINEL'));
+  assert.ok(!text.includes('<f>'));
+  assert.ok(text.includes('=SUM(1,2) &amp; Player'));
+  assert.ok(text.includes('Public information'));
+  assert.deepEqual((await read()).state, exportBefore);
+  if (process.env.PONG_EXPORT_TEST_FILE)
+    writeFileSync(process.env.PONG_EXPORT_TEST_FILE, bytes);
   const history = (await read()).state;
   r = await post(
     '/api/managers',
