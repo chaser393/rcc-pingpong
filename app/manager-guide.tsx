@@ -93,7 +93,8 @@ export default function ManagerGuide() {
       <details>
         <summary>Download players and past nights</summary>
         <p>
-          Choose Download spreadsheet at the top of the app. Your browser
+          The super admin can open Options and choose Download spreadsheet.
+          Other managers and visitors cannot download exports. Your browser
           downloads an Excel workbook to the device you are using. It includes a
           Players tab with current career stats, plus a separate tab for each
           completed night with standings and match scores. On a phone, use the

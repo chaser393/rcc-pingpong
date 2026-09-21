@@ -229,7 +229,14 @@ try {
     assert.equal(r.status, 200, await r.text());
   }
   const exportBefore = (await read()).state;
-  const download = await fetch(url + '/api/export');
+  assert.equal((await fetch(url + '/api/export')).status, 403);
+  assert.equal(
+    (await fetch(url + '/api/export', { headers: { cookie: scorer } })).status,
+    403,
+  );
+  const download = await fetch(url + '/api/export', {
+    headers: { cookie: admin },
+  });
   assert.equal(download.status, 200);
   assert.match(download.headers.get('content-type'), /spreadsheetml/);
   assert.match(

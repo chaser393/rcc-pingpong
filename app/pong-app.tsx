@@ -551,9 +551,6 @@ export default function PongApp() {
           <i>●</i>
         </a>
         <div className="actions">
-          <a className="export-download" href="/api/export" download>
-            Download spreadsheet
-          </a>
           {data.manager ? (
             <>
               <span className="manager-name">{data.manager}</span>
@@ -998,6 +995,15 @@ export default function PongApp() {
                 than four singles players or eight doubles players.
               </p>
               <button disabled={busy}>Save options</button>
+              <hr />
+              <h3>Spreadsheet export</h3>
+              <p className="muted">
+                Download players, career stats, and a separate sheet for each
+                completed night to this device.
+              </p>
+              <a className="export-download" href="/api/export" download>
+                Download spreadsheet
+              </a>
             </form>
           )}
           {modal === 'managers' && data.superAdmin && (

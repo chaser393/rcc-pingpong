@@ -1,7 +1,22 @@
-import { db } from '@/lib/server';
+import { isSuperAdmin } from '@/lib/permissions';
+import { db, manager } from '@/lib/server';
 import { empty, type State } from '@/lib/pong';
 import { exportWorkbook } from '@/lib/spreadsheet-export';
-export async function GET() {
+export async function GET(req: Request) {
+  const who = await manager(req);
+  if (!isSuperAdmin(who?.username))
+    return new Response(
+      JSON.stringify({
+        error: 'Only the super admin can download spreadsheets.',
+      }),
+      {
+        status: 403,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+        },
+      },
+    );
   const row = await db()
     .prepare('SELECT data FROM club WHERE id = 1')
     .first<{ data: string }>();
