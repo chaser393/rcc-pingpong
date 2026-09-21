@@ -551,6 +551,9 @@ export default function PongApp() {
           <i>●</i>
         </a>
         <div className="actions">
+          <a className="export-download" href="/api/export" download>
+            Download spreadsheet
+          </a>
           {data.manager ? (
             <>
               <span className="manager-name">{data.manager}</span>

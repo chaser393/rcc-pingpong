@@ -146,3 +146,5 @@ body{margin:0;background:var(--background);color:var(--foreground)}button,a,inpu
 .table-grid{align-items:start}.table-visibility{background:transparent;color:white;border:1px solid #ffffff80;min-height:44px;padding:8px 12px;flex-shrink:0}.table-visibility:hover{background:#ffffff20}.table-panel [hidden]{display:none}.manager-list{list-style:none;padding:0;margin:16px 0}.manager-list li{padding:14px 0;border-bottom:1px solid var(--border);display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap}.manager-panel{display:grid;gap:12px}.manager-list .actions{flex-wrap:wrap}
 
 .manager-guide details{border-top:1px solid var(--border);padding:12px 0}.manager-guide summary{cursor:pointer;font-weight:650;min-height:44px;display:list-item;padding:10px 0}.manager-guide details p{line-height:1.65;margin:8px 0 12px}.shell footer{flex-wrap:wrap}
+
+.export-download{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:1px solid #b7cbc2;border-radius:8px;color:#244e44;font-size:14px;font-weight:650;text-decoration:none}.export-download:hover{background:#e6efdf}

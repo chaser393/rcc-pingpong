@@ -90,6 +90,18 @@ export default function ManagerGuide() {
           table. Managers resolve ties and can change either finalist.
         </p>
       </details>
+      <details>
+        <summary>Download players and past nights</summary>
+        <p>
+          Choose Download spreadsheet at the top of the app. Your browser
+          downloads an Excel workbook to the device you are using. It includes a
+          Players tab with current career stats, plus a separate tab for each
+          completed night with standings and match scores. On a phone, use the
+          browser's download or save/share prompt to save it to Files or open it
+          in a spreadsheet app. Private notes are not included. This is a
+          report, not a restorable database backup.
+        </p>
+      </details>
       {steps.map(([title, text], i) => (
         <details key={title}>
           <summary>
