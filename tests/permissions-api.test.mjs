@@ -96,14 +96,30 @@ try {
   const n = (await read()).state.nights[0];
   const m = n.matches[0];
   r = await change(
+    'activeMatch',
+    { nightId: n.id, matchId: m.id, active: true },
+    scorer,
+  );
+  assert.equal(r.status, 200, await r.text());
+  assert.equal(
+    (await read()).state.nights[0].matches.find((x) => x.id === m.id).active,
+    true,
+  );
+
+  r = await change(
     'score',
     { nightId: n.id, matchId: m.id, score: [21, 10] },
     scorer,
   );
   assert.equal(r.status, 200, await r.text());
+  assert.equal(
+    (await read()).state.nights[0].matches.find((x) => x.id === m.id).active,
+    false,
+  );
   const before = (await read()).state;
   for (const [action, value] of [
     ['settings', { defaultTables: 1 }],
+    ['deleteMatch', { nightId: n.id, matchId: m.id }],
     ['resetPlayerStats', { id: ids[0] }],
     ['deleteNight', { nightId: n.id }],
     ['unknown', {}],
@@ -201,6 +217,17 @@ try {
   r = await change('finish', { nightId: singles.id }, scorer);
   assert.equal(r.status, 200, await r.text());
   assert.deepEqual((await read()).state.nights.slice(0, -1), doublesHistory);
+  r = await change(
+    'deleteMatch',
+    { nightId: singles.id, matchId: singlesFinal.id },
+    admin,
+  );
+  assert.equal(r.status, 200, await r.text());
+  assert.ok(
+    !(await read()).state.nights
+      .at(-1)
+      .matches.some((m) => m.id === singlesFinal.id),
+  );
   const unchangedNights = (await read()).state.nights;
   r = await change('settings', { defaultTables: 1 }, admin);
   assert.equal(r.status, 200, await r.text());

@@ -17,6 +17,7 @@ export function canChangeState(
     'night',
     'score',
     'addMatch',
+    'activeMatch',
     'renameNight',
     'attendance',
     'move',
