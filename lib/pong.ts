@@ -22,6 +22,7 @@ export type Match = {
   b: string[];
   score: number[] | null;
   champ: boolean;
+  active?: boolean;
 };
 export type Member = {
   id: string;
@@ -145,7 +146,7 @@ export function schedule(n: Night, table: number) {
       }
   };
   for (const m of n.matches.filter(
-    (m) => !m.champ && m.table === table && m.score,
+    (m) => !m.champ && m.table === table && (m.score || m.active),
   ))
     record(m);
   const candidates: { a: string[]; b: string[] }[] = [];
@@ -219,7 +220,7 @@ function singlesSchedule(n: Night, table: number, ids: string[]): Match[] {
   const played = new Set<string>();
   let last: string[] = [];
   for (const m of n.matches.filter(
-    (m) => !m.champ && m.table === table && m.score,
+    (m) => !m.champ && m.table === table && (m.score || m.active),
   )) {
     played.add(pair(m.a[0], m.b[0]));
     for (const id of [...m.a, ...m.b]) if (id in counts) counts[id]++;
@@ -267,10 +268,15 @@ function singlesSchedule(n: Night, table: number, ids: string[]): Match[] {
   }
   return result;
 }
-export function reshuffle(n: Night) {
-  n.matches = n.matches.filter((m) => m.score || m.champ);
-  for (const table of [...new Set(n.members.map((p) => p.table))])
-    n.matches.push(...schedule(n, table));
+export function reshuffle(
+  n: Night,
+  tables = [...new Set(n.members.map((p) => p.table))],
+) {
+  const affected = new Set(tables);
+  n.matches = n.matches.filter(
+    (m) => !affected.has(m.table) || m.score || m.champ || m.active,
+  );
+  for (const table of affected) n.matches.push(...schedule(n, table));
 }
 const normalizedName = (name: string) =>
   name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
@@ -464,6 +470,61 @@ function applyChange(s: State, action: string, v: any): State {
     };
     reshuffle(n);
     s.nights.push(n);
+  } else if (action === 'activeMatch') {
+    const n = openNight();
+    const m = n.matches.find((m) => m.id === v.matchId);
+    if (!m || typeof v.active !== 'boolean')
+      throw Error('Choose a match and its in-progress status.');
+    if (m.score) throw Error('This match already has a final score.');
+    if (v.active) {
+      if (
+        n.matches.some(
+          (x) =>
+            x.id !== m.id &&
+            x.active &&
+            (x.table === m.table ||
+              [...x.a, ...x.b].some((id) => [...m.a, ...m.b].includes(id))),
+        )
+      )
+        throw Error(
+          'Finish or unmark the other in-progress match at this table or involving these players first.',
+        );
+      if (
+        !m.champ &&
+        [...m.a, ...m.b].some(
+          (id) =>
+            !n.members.some(
+              (p) => p.id === id && p.active && p.table === m.table,
+            ),
+        )
+      )
+        throw Error('Only current players at this table can start a match.');
+      if (m.champ) {
+        const previous = n.matches
+          .filter((x) => x.champ)
+          .slice(
+            0,
+            n.matches.filter((x) => x.champ).findIndex((x) => x.id === m.id),
+          );
+        if (
+          previous.some((x) => !x.score) ||
+          [0, 1].some(
+            (side) =>
+              previous.filter((x) => x.score![side] > x.score![1 - side])
+                .length >= Math.ceil(n.bestOf / 2),
+          )
+        )
+          throw Error(
+            'Finish earlier championship games first; do not start a game after the series is decided.',
+          );
+      }
+    }
+    m.active = v.active;
+  } else if (action === 'deleteMatch') {
+    const n = findNight();
+    if (!n.matches.some((m) => m.id === v.matchId))
+      throw Error('Match not found.');
+    n.matches = n.matches.filter((m) => m.id !== v.matchId);
   } else if (action === 'score') {
     const n = findNight(),
       m = n.matches.find((m) => m.id === v.matchId);
@@ -508,11 +569,13 @@ function applyChange(s: State, action: string, v: any): State {
         } else over = true;
       }
     }
+    if (m.score) m.active = false;
   } else if (action === 'attendance') {
     const n = openNight();
     if (n.matches.some((m) => m.champ))
       throw Error('Attendance is locked once the championship is set.');
     const old = n.members.find((p) => p.id === v.out);
+    const affected = new Set<number>(old ? [old.table] : []);
     if (v.out && !old) throw Error('Player not on this night.');
     if (v.in) {
       existing(v.in);
@@ -529,14 +592,16 @@ function applyChange(s: State, action: string, v: any): State {
       }
       let member = n.members.find((p) => p.id === v.in);
       if (member) {
+        if (member.active) affected.add(member.table);
         member.active = true;
         member.table = v.table;
         member.credit = credit;
       } else n.members.push({ id: v.in, table: v.table, active: true, credit });
+      affected.add(v.table);
       if (n.ranks[v.in] === undefined) n.ranks[v.in] = stats(s)[v.in].pr;
     }
     if (old) old.active = false;
-    reshuffle(n);
+    reshuffle(n, [...affected]);
   } else if (action === 'move') {
     const n = openNight();
     if (n.matches.some((m) => m.champ))
@@ -544,8 +609,9 @@ function applyChange(s: State, action: string, v: any): State {
     const p = n.members.find((p) => p.id === v.playerId);
     if (!p || ![1, 2].includes(v.table))
       throw Error('Choose a player and table.');
+    const previousTable = p.table;
     p.table = v.table;
-    reshuffle(n);
+    reshuffle(n, [...new Set([previousTable, v.table])]);
   } else if (action === 'reshuffle') {
     const n = openNight();
     if (n.matches.some((m) => m.champ))
@@ -553,6 +619,10 @@ function applyChange(s: State, action: string, v: any): State {
     reshuffle(n);
   } else if (action === 'championship') {
     const n = openNight();
+    if (n.matches.some((m) => m.active))
+      throw Error(
+        'Finish or unmark in-progress matches before setting finalists.',
+      );
     const size = teamSize(n);
     if (n.matches.some((m) => m.champ && m.score))
       throw Error('Clear championship scores before changing finalists.');
@@ -582,9 +652,9 @@ function applyChange(s: State, action: string, v: any): State {
     const finals = n.matches.filter((m) => m.champ);
     if (![1, 3].includes(v.bestOf) || !finals.length)
       throw Error('Set finalists and choose one game or best of three.');
-    if (finals.slice(v.bestOf).some((m) => m.score))
+    if (finals.slice(v.bestOf).some((m) => m.score || m.active))
       throw Error(
-        'Clear later championship scores before shortening the series.',
+        'Clear later championship scores and in-progress status before shortening the series.',
       );
     const remove = new Set(finals.slice(v.bestOf).map((m) => m.id));
     n.matches = n.matches.filter((m) => !remove.has(m.id));
@@ -595,10 +665,16 @@ function applyChange(s: State, action: string, v: any): State {
         a: [...finals[0].a],
         b: [...finals[0].b],
         score: null,
+        active: false,
       });
     n.bestOf = v.bestOf;
   } else if (action === 'finish') {
-    openNight().closed = true;
+    const n = openNight();
+    if (n.matches.some((m) => m.active))
+      throw Error(
+        'Finish or unmark in-progress matches before ending the night.',
+      );
+    n.closed = true;
   } else throw Error('Unknown action.');
   return s;
 }
@@ -624,6 +700,8 @@ export function apply(
   const score = (m: Match) => (m.score ? m.score.join('–') : 'unscored');
   const titles: Record<string, string> = {
     addMatch: 'Extra match added',
+    activeMatch: 'Match progress updated',
+    deleteMatch: 'Match deleted',
     resetPlayerStats: 'Player stats reset',
     night: 'Night started',
     renameNight: 'Night renamed',
@@ -673,9 +751,14 @@ export function apply(
         details.push(n.closed ? 'Night marked complete.' : 'Night reopened.');
       for (const old of previous.matches) {
         const match = n.matches.find((x) => x.id === old.id);
-        if (!match) details.push(`Removed unplayed game — ${matchup(old)}.`);
+        if (!match)
+          details.push(`Removed game — ${matchup(old)} (${score(old)}).`);
         else if (JSON.stringify(old.score) !== JSON.stringify(match.score))
           details.push(`${matchup(match)}: ${score(old)} → ${score(match)}.`);
+        if (match && !!old.active !== !!match.active)
+          details.push(
+            `${matchup(match)}: ${match.active ? 'in progress' : 'no longer in progress'}.`,
+          );
       }
     }
     for (const m of n.matches)

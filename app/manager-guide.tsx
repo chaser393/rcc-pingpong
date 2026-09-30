@@ -17,7 +17,7 @@ const steps = [
   ],
   [
     'Add more matches',
-    'Before the championship, choose Add match under the table. Review the suggested players or select two players for singles or two teams for doubles, then Add match. Reshuffle rebuilds remaining unplayed games while keeping completed scores.',
+    'Before the championship, choose Add match under the table. Review the suggested players or select two players for singles or two teams for doubles, then Add match. Reshuffle rebuilds unplayed games while keeping completed scores and matches marked In progress. Attendance changes rebuild only the affected table; moves rebuild both affected tables.',
   ],
   [
     'Start the championship',
@@ -71,12 +71,14 @@ export default function ManagerGuide() {
           </li>
         </ol>
         <p>
-          When attendance changes or you reshuffle, completed scores stay.
-          Remaining matches are rebuilt for the current players. Completed
-          pairings at that table are not repeated for round-robin coverage, but
-          extra repeat matches may be added to bring current players’ scheduling
-          totals within one game of each other. With only two active players, an
-          existing gap cannot shrink because each match adds a game to both.
+          When attendance changes or you reshuffle, completed scores stay. Only
+          tables affected by attendance changes are rebuilt for the current
+          players; the other table keeps its schedule. In-progress matches stay
+          in place. Completed pairings at that table are not repeated for
+          round-robin coverage, but extra repeat matches may be added to bring
+          current players’ scheduling totals within one game of each other. With
+          only two active players, an existing gap cannot shrink because each
+          match adds a game to both.
         </p>
         <p>
           A replacement can inherit scheduling credit to help balance the
@@ -101,6 +103,23 @@ export default function ManagerGuide() {
           browser's download or save/share prompt to save it to Files or open it
           in a spreadsheet app. Private notes are not included. This is a
           report, not a restorable database backup.
+        </p>
+      </details>
+      <details>
+        <summary>Protect an in-progress match or delete a match</summary>
+        <p>
+          Choose Start match before playing. Its In progress label is shared
+          with everyone, and its players stay fixed during reshuffles even if
+          attendance changes. Only one match per table can be in progress.
+          Saving the final score clears the status automatically; use Unmark in
+          progress if play stops. Finish or unmark in-progress games before
+          setting finalists or ending the night.
+        </p>
+        <p>
+          Only the super admin can choose Delete match and confirm. Deleting a
+          scored match removes its result from stats and PR and may change
+          championship totals. Change history records the deletion. A future
+          reshuffle may schedule that pairing again.
         </p>
       </details>
       {steps.map(([title, text], i) => (

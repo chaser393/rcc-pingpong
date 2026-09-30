@@ -251,7 +251,13 @@ export default function PongApp() {
             {m.champ ? 'FINAL' : 'MATCH'} {index + 1}
           </span>
           <span className="badge">
-            {m.score ? 'Final score' : decided ? 'Not needed' : pr.label}
+            {m.score
+              ? 'Final score'
+              : m.active
+                ? 'In progress'
+                : decided
+                  ? 'Not needed'
+                  : pr.label}
           </span>
         </div>
         <div className="team-row">
@@ -266,6 +272,37 @@ export default function PongApp() {
           <small>
             {pr.a} vs {pr.b} PR{m.score ? ` · ±${pr.points} each` : ''}
           </small>
+          {data.manager && !n.closed && !m.score && !decided && (
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() =>
+                run('activeMatch', {
+                  nightId: n.id,
+                  matchId: m.id,
+                  active: !m.active,
+                })
+              }
+            >
+              {m.active ? 'Unmark in progress' : 'Start match'}
+            </button>
+          )}
+          {data.superAdmin && (
+            <button
+              className="secondary danger"
+              disabled={busy}
+              onClick={() =>
+                open('confirm', {
+                  action: 'deleteMatch',
+                  value: { nightId: n.id, matchId: m.id },
+                  title: 'Delete this match?',
+                  text: `Delete ${m.a.map(name).join(' + ')} vs ${m.b.map(name).join(' + ')}${m.active ? ' (currently in progress)' : ''}? Any saved score will be removed and wins, losses, games, PR and championship totals recalculated. This cannot be undone. A later reshuffle may schedule this matchup again.`,
+                })
+              }
+            >
+              Delete match
+            </button>
+          )}
           {data.manager && !decided && (
             <button
               className="secondary"
@@ -405,7 +442,7 @@ export default function PongApp() {
                     action: 'reshuffle',
                     value: { nightId: n.id },
                     title: 'Reshuffle remaining games?',
-                    text: 'Completed scores stay in place. Unplayed matches will be replaced with a new rotation.',
+                    text: 'Completed scores and in-progress matches stay in place. Other unplayed matches will be replaced with a new rotation.',
                   })
                 }
                 disabled={finals.length > 0}
