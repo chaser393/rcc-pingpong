@@ -1,6 +1,8 @@
 import { zipSync, strToU8 } from 'fflate';
 import {
   stats,
+  playerTiming,
+  matchSeconds,
   standings,
   championshipResult,
   latestAttendance,
@@ -14,7 +16,8 @@ export type ExportSheet = { name: string; rows: Row[] };
 
 // Export public fields only, regardless of the downloading user's role.
 export function exportSheets(s: State): ExportSheet[] {
-  const totals = stats(s);
+  const totals = stats(s),
+    timing = playerTiming(s);
   const name = (id: string) =>
     s.players.find((p) => p.id === id)?.name ?? 'Unknown player';
   const sheets: ExportSheet[] = [
@@ -33,6 +36,9 @@ export function exportSheets(s: State): ExportSheet[] {
             'Last night',
             'Last attended (UTC)',
             'Info',
+            'Timed games',
+            'Average match seconds',
+            'Total match seconds',
           ],
           heading: true,
         },
@@ -54,13 +60,62 @@ export function exportSheets(s: State): ExportSheet[] {
                 last?.name ?? '',
                 last?.date ?? '',
                 p.info,
+                timing[p.id].games,
+                timing[p.id].average ?? '',
+                timing[p.id].seconds,
               ],
             };
           }),
       ],
     },
   ];
-  const used = new Set(['players']);
+  const timeRows: Row[] = [
+    {
+      cells: [
+        'Night',
+        'Table / Final',
+        'Match ID',
+        'Player',
+        'Opponent(s)',
+        'Timing starts (UTC)',
+        'Final submitted (UTC)',
+        'Seconds',
+        'Timing source',
+        'Status',
+        'Included in career average',
+      ],
+      heading: true,
+    },
+  ];
+  for (const n of s.nights)
+    for (const m of n.matches)
+      for (const id of [...m.a, ...m.b]) {
+        const seconds = matchSeconds(m);
+        timeRows.push({
+          cells: [
+            n.name,
+            m.champ ? 'Championship' : m.table,
+            m.id,
+            name(id),
+            (m.a.includes(id) ? m.b : m.a).map(name).join(' + '),
+            m.timing?.start ?? '',
+            m.timing?.end ?? '',
+            seconds ?? '',
+            m.timing?.source === 'previous-score'
+              ? 'Previous final score (includes gap)'
+              : m.timing?.source === 'start'
+                ? 'Start match'
+                : 'Not recorded',
+            m.score ? 'Scored' : m.active ? 'In progress' : 'Unscored',
+            seconds !== null &&
+            !s.players.find((p) => p.id === id)?.resetMatchIds?.includes(m.id)
+              ? 'Yes'
+              : 'No',
+          ],
+        });
+      }
+  sheets.push({ name: 'Match times', rows: timeRows });
+  const used = new Set(['players', 'match times']);
   for (const n of s.nights
     .filter((n) => n.closed)
     .slice()
@@ -245,7 +300,7 @@ export function exportWorkbook(s: State): Uint8Array {
       .join('');
     put(
       `xl/worksheets/sheet${index + 1}.xml`,
-      `<worksheet xmlns="${ns}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="10" width="22" customWidth="1"/></cols><sheetData>${rows}</sheetData><pageMargins left="0.3" right="0.3" top="0.5" bottom="0.5" header="0.2" footer="0.2"/><pageSetup orientation="landscape" paperSize="9"/></worksheet>`,
+      `<worksheet xmlns="${ns}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="13" width="22" customWidth="1"/></cols><sheetData>${rows}</sheetData><pageMargins left="0.3" right="0.3" top="0.5" bottom="0.5" header="0.2" footer="0.2"/><pageSetup orientation="landscape" paperSize="9"/></worksheet>`,
     );
   });
   return zipSync(files);

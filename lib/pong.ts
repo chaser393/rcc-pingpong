@@ -23,6 +23,11 @@ export type Match = {
   score: number[] | null;
   champ: boolean;
   active?: boolean;
+  timing?: {
+    start?: string;
+    end?: string;
+    source?: 'start' | 'previous-score';
+  };
 };
 export type Member = {
   id: string;
@@ -519,6 +524,8 @@ function applyChange(s: State, action: string, v: any): State {
           );
       }
     }
+    if (v.active && !m.timing)
+      m.timing = timingStart(n, m, new Date().toISOString());
     m.active = v.active;
   } else if (action === 'deleteMatch') {
     const n = findNight();
@@ -569,7 +576,21 @@ function applyChange(s: State, action: string, v: any): State {
         } else over = true;
       }
     }
-    if (m.score) m.active = false;
+    if (m.score) {
+      if (!previous && !m.timing?.end && !n.closed) {
+        const now = new Date().toISOString();
+        // An unstarted first match has no known duration, but provides the next baseline.
+        const baseline = latestTableFinish(n, m);
+        m.timing = {
+          ...(m.timing ??
+            (baseline
+              ? { start: baseline, source: 'previous-score' as const }
+              : {})),
+          end: now,
+        };
+      }
+      m.active = false;
+    }
   } else if (action === 'attendance') {
     const n = openNight();
     if (n.matches.some((m) => m.champ))
@@ -666,6 +687,7 @@ function applyChange(s: State, action: string, v: any): State {
         b: [...finals[0].b],
         score: null,
         active: false,
+        timing: undefined,
       });
     n.bestOf = v.bestOf;
   } else if (action === 'finish') {
@@ -883,4 +905,57 @@ export function suggestedFinalists(n: Night) {
       .map((p) => p.id),
   );
   return n.mode === 'singles' ? ids : pairFinalistsByPR(ids, n.ranks);
+}
+
+function latestTableFinish(n: Night, m: Match) {
+  return n.matches
+    .filter(
+      (x) => x.id !== m.id && x.table === m.table && x.score && x.timing?.end,
+    )
+    .map((x) => x.timing!.end!)
+    .sort()
+    .at(-1);
+}
+function timingStart(
+  n: Night,
+  m: Match,
+  now: string,
+): NonNullable<Match['timing']> {
+  const previous = latestTableFinish(n, m);
+  return {
+    start: previous ?? now,
+    source: previous ? 'previous-score' : 'start',
+  };
+}
+export function matchSeconds(m: Match): number | null {
+  if (!m.score || !m.timing?.start || !m.timing.end) return null;
+  const ms = Date.parse(m.timing.end) - Date.parse(m.timing.start);
+  return Number.isFinite(ms) && ms >= 0 ? ms / 1000 : null;
+}
+export function playerTiming(s: State) {
+  const result: Record<
+    string,
+    { games: number; seconds: number; average: number | null }
+  > = {};
+  for (const p of s.players)
+    result[p.id] = { games: 0, seconds: 0, average: null };
+  for (const n of s.nights)
+    for (const m of n.matches) {
+      const seconds = matchSeconds(m);
+      if (seconds === null) continue;
+      for (const id of [...m.a, ...m.b]) {
+        const p = s.players.find((p) => p.id === id);
+        if (!p || p.resetMatchIds?.includes(m.id)) continue;
+        result[id].games++;
+        result[id].seconds += seconds;
+      }
+    }
+  for (const t of Object.values(result))
+    if (t.games) t.average = t.seconds / t.games;
+  return result;
+}
+export function formatMatchTime(seconds: number | null) {
+  if (seconds === null) return 'Not recorded';
+  const whole = Math.max(0, Math.round(seconds));
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
 }

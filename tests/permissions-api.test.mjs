@@ -275,6 +275,12 @@ try {
   const files = unzipSync(bytes);
   const workbook = strFromU8(files['xl/workbook.xml']);
   assert.match(workbook, /name="Players"/);
+  assert.match(workbook, /name="Match times"/);
+  assert.ok(
+    Object.values(files).some((file) =>
+      strFromU8(file).includes('Timing starts (UTC)'),
+    ),
+  );
   assert.match(workbook, /name="Players \(2\)"/);
   assert.match(workbook, /name="Players \(3\)"/);
   const text = Object.values(files)

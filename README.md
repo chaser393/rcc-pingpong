@@ -115,3 +115,7 @@ The browser handles the attachment: desktop downloads normally go to Downloads; 
 ## In-progress matches and targeted reshuffling
 
 Attendance changes rebuild only affected tables; a table move rebuilds source and destination. Managers can Start match or Unmark in progress. Active matches retain IDs and players through reshuffles, count as reserved scheduling games, and do not count toward stats until scored. Final scores clear the flag. Only one active match per table (and no overlapping active players) is allowed. Finalist changes and finishing a night require clearing active matches. Super admin alone can delete individual matches, including scored/archived ones; stats and championship totals recalculate and deletions are audited. A later reshuffle can recreate the pairing.
+
+## Match timing
+
+First match timing starts with Start match. Later matches use the previous final-score submission at the same table, including between-game gaps. The championship has its own sequence. Server timestamps are saved on matches and survive reshuffles, score corrections and clearing/re-entering scores. Unmarking does not reset timing. Unknown old durations are excluded, not zero-filled. Career timing averages honor stat resets and only scored matches count. Deletions remove the match from averages without rewriting other saved intervals. The admin workbook includes Match times (one row per player per match, including ongoing nights) and player timed-game counts, total seconds and average seconds.

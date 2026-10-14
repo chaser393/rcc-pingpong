@@ -15,6 +15,9 @@ import {
   teamSize,
   suggestedFinalists,
   latestAttendance,
+  playerTiming,
+  matchSeconds,
+  formatMatchTime,
 } from '@/lib/pong';
 import {
   AlertDialog,
@@ -92,6 +95,7 @@ export default function PongApp() {
     [showHidden, setShowHidden] = useState(false);
   const s = data.state,
     ranking = stats(s),
+    timing = playerTiming(s),
     current = s.nights.find((n) => !n.closed),
     night =
       tab === 'history' ? s.nights.find((n) => n.id === historyId) : current;
@@ -268,6 +272,19 @@ export default function PongApp() {
           <strong>{m.b.map(name).join(' + ')}</strong>
           <b>{m.score?.[1] ?? '—'}</b>
         </div>
+        {m.score && (
+          <p className="muted">
+            Match time: {formatMatchTime(matchSeconds(m))}
+          </p>
+        )}
+        {m.active && m.timing?.start && (
+          <p className="muted">
+            Timing from {new Date(m.timing.start).toLocaleTimeString()} ·{' '}
+            {m.timing.source === 'previous-score'
+              ? 'previous final score'
+              : 'Start match'}
+          </p>
+        )}
         <div className="row match-bottom">
           <small>
             {pr.a} vs {pr.b} PR{m.score ? ` · ±${pr.points} each` : ''}
@@ -786,6 +803,11 @@ export default function PongApp() {
                       <b>{ranking[p.id].championships}</b> Titles
                     </span>
                   </div>
+                  <p className="muted">
+                    Average match time:{' '}
+                    <strong>{formatMatchTime(timing[p.id].average)}</strong> ·{' '}
+                    {timing[p.id].games} timed games (min:sec)
+                  </p>
                   {(() => {
                     const last = latestAttendance(s, p.id);
                     return (

@@ -122,6 +122,24 @@ export default function ManagerGuide() {
           reshuffle may schedule that pairing again.
         </p>
       </details>
+      <details>
+        <summary>Match timing and player averages</summary>
+        <p>
+          For the first game at a table, click Start match to begin timing.
+          Later games count from the previous game's final-score submission at
+          that table until their own final score is saved, including the gap
+          between games. The championship has its own timer sequence, so click
+          Start match for its first game too.
+        </p>
+        <p>
+          Each player gets the full match duration. Roster averages include only
+          timed, scored games since any career-stat reset. Old games without
+          timing show Not recorded. Score corrections keep the original timing;
+          clearing or deleting a result excludes it from averages. Unmarking and
+          restarting does not reset the clock. The admin spreadsheet includes a
+          Match times tab with per-player match details, timestamps and seconds.
+        </p>
+      </details>
       {steps.map(([title, text], i) => (
         <details key={title}>
           <summary>
