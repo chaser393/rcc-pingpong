@@ -132,6 +132,7 @@ try {
     ['score', { nightId: n.id, matchId: m.id, score: [10, 21] }],
     ['score', { nightId: n.id, matchId: m.id, score: null }],
     ['score', { nightId: n.id, matchId: m.id, score: [21, 10] }],
+    ['completedFirst', { nightId: n.id, table: 1 }],
     ['renameNight', { nightId: n.id, name: 'Changed' }],
     ['addMatch', { nightId: n.id, table: 1, ids: ids.slice(0, 4) }],
     ['reshuffle', { nightId: n.id }],

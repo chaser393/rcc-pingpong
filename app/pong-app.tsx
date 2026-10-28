@@ -1369,6 +1369,30 @@ export default function PongApp() {
                 Update & rebuild games
               </button>
               <hr />
+              <h3>Put completed games first</h3>
+              <p className="muted">
+                Move scored games to the top of their table and renumber them.
+                Matchups, scores, timing, and the order of remaining games stay
+                the same.
+              </p>
+              <div className="actions">
+                {[...new Set(current!.members.map((m) => m.table))]
+                  .sort()
+                  .map((table) => (
+                    <button
+                      key={table}
+                      type="button"
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() =>
+                        run('completedFirst', { nightId: current!.id, table })
+                      }
+                    >
+                      Table {table}: completed games first
+                    </button>
+                  ))}
+              </div>
+              <hr />
               <h3>Move between tables</h3>
               {current!.members
                 .filter((m) => m.active)

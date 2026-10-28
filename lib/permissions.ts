@@ -22,6 +22,7 @@ export function canChangeState(
     'attendance',
     'move',
     'reshuffle',
+    'completedFirst',
     'championship',
     'championshipFormat',
     'finish',

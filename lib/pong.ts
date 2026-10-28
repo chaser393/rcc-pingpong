@@ -633,6 +633,18 @@ function applyChange(s: State, action: string, v: any): State {
     const previousTable = p.table;
     p.table = v.table;
     reshuffle(n, [...new Set([previousTable, v.table])]);
+  } else if (action === 'completedFirst') {
+    const n = openNight();
+    if (![1, 2].includes(v.table)) throw Error('Choose a table.');
+    const games = n.matches.filter((m) => !m.champ && m.table === v.table);
+    const ordered = [
+      ...games.filter((m) => m.score),
+      ...games.filter((m) => !m.score),
+    ];
+    let index = 0;
+    n.matches = n.matches.map((m) =>
+      !m.champ && m.table === v.table ? ordered[index++] : m,
+    );
   } else if (action === 'reshuffle') {
     const n = openNight();
     if (n.matches.some((m) => m.champ))
@@ -734,6 +746,7 @@ export function apply(
     championship: 'Championship set',
     championshipFormat: 'Championship format changed',
     finish: 'Night finished',
+    completedFirst: 'Completed games moved to top',
   };
   for (const n of s.nights) {
     const previous = snapshots.get(n.id);
@@ -745,6 +758,14 @@ export function apply(
         `Players: ${n.members.map((m) => `${name(m.id)} (Table ${m.table})`).join(', ')}`,
       );
     } else {
+      if (
+        action === 'completedFirst' &&
+        previous.matches.map((m) => m.id).join(',') !==
+          n.matches.map((m) => m.id).join(',')
+      )
+        details.push(
+          `Table ${value.table}: completed games moved ahead of unplayed games and display numbers updated. Matchups, scores and timing unchanged.`,
+        );
       if (previous.name !== n.name)
         details.push(`Name: ${previous.name} → ${n.name}`);
       for (const m of n.members) {

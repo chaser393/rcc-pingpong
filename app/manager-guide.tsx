@@ -140,6 +140,17 @@ export default function ManagerGuide() {
           Match times tab with per-player match details, timestamps and seconds.
         </p>
       </details>
+      <details>
+        <summary>Move completed games to the top</summary>
+        <p>
+          If a table plays games out of order, open Attendance and choose Table
+          1 or Table 2: completed games first. Scored games move to the top in
+          their existing relative order, becoming Match 1, 2, 3, and so on.
+          Remaining games keep their order. This only renumbers and reorders the
+          selected table; matchups, in-progress status, timing, scores, stats
+          and the other table stay unchanged.
+        </p>
+      </details>
       {steps.map(([title, text], i) => (
         <details key={title}>
           <summary>
