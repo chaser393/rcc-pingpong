@@ -704,6 +704,9 @@ export default function PongApp() {
           <TabsTrigger value="roster">
             <Users size={18} /> Players
           </TabsTrigger>
+          <TabsTrigger value="ranking">
+            <Trophy size={18} /> Ranking
+          </TabsTrigger>
           <TabsTrigger value="history">
             <Trophy size={18} /> Past nights
           </TabsTrigger>
@@ -936,6 +939,120 @@ export default function PongApp() {
               ranks already frozen for later nights.
             </p>
           </details>
+        </TabsContent>
+        <TabsContent value="ranking">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">PLAYER STATS</p>
+              <h2>
+                Ranking <span className="count">{roster.length}</span>
+              </h2>
+            </div>
+          </div>
+          <div className="roster-toolbar">
+            <Choice
+              label="Sort ranking"
+              value={rosterSort}
+              onChange={setRosterSort}
+              options={[
+                { value: 'name', label: 'First name · A–Z' },
+                { value: 'wins', label: 'Wins · highest first' },
+                { value: 'losses', label: 'Losses · highest first' },
+                { value: 'games', label: 'Games · highest first' },
+                { value: 'pr', label: 'PR · highest first' },
+              ]}
+            />
+            <label className="check-row">
+              <Checkbox checked={showHidden} onCheckedChange={setShowHidden} />{' '}
+              Show hidden players
+            </label>
+          </div>
+
+          <p className="muted">
+            Career totals, one player per row. On a phone, swipe the table
+            sideways to see all stats.
+          </p>
+          {roster.length === 0 ? (
+            <section className="empty-panel">
+              <h2>No players to show.</h2>
+              <p>Add a player in Roster or turn on Show hidden players.</p>
+            </section>
+          ) : (
+            <div
+              className="ranking-list"
+              role="region"
+              aria-label="Player ranking, scroll horizontally for all stats"
+              tabIndex={0}
+            >
+              <table>
+                <caption className="sr-only">
+                  Player career statistics in selected sort order
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Player</th>
+                    <th scope="col">PR</th>
+                    <th scope="col">Wins</th>
+                    <th scope="col">Losses</th>
+                    <th scope="col">Games</th>
+                    <th scope="col">Titles</th>
+                    <th scope="col">Avg. time</th>
+                    <th scope="col">Last attended</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roster.map((p, index) => {
+                    const t = ranking[p.id],
+                      time = timing[p.id],
+                      last = latestAttendance(s, p.id);
+                    return (
+                      <tr key={p.id}>
+                        <th scope="row">
+                          <span className="position">{index + 1}</span>
+                          {p.name}
+                          {p.hidden && <small> · Hidden</small>}
+                        </th>
+                        <td>
+                          <strong>{t.pr}</strong>
+                        </td>
+                        <td>{t.wins}</td>
+                        <td>{t.losses}</td>
+                        <td>{t.games}</td>
+                        <td>{t.championships}</td>
+                        <td>
+                          {formatMatchTime(time.average)}
+                          <small className="ranking-detail">
+                            {time.games} timed games · min:sec
+                          </small>
+                        </td>
+                        <td>
+                          {last ? (
+                            <>
+                              <a
+                                href={last.closed ? '#past-nights' : '#tonight'}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setHistoryId(last.id);
+                                  setTab(last.closed ? 'history' : 'night');
+                                }}
+                              >
+                                {last.name}
+                              </a>
+                              <small className="ranking-detail">
+                                {new Date(last.date).toLocaleDateString()}
+                              </small>
+                            </>
+                          ) : (
+                            'Not yet played'
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </TabsContent>
         <TabsContent value="history">
           <div className="section-heading">

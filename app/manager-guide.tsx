@@ -9,7 +9,7 @@ const steps = [
   ],
   [
     'Sort players and assign tables',
-    'In Roster, use Sort players to sort by first name, wins, losses, games, or PR. During setup, choose one or two tables. Assign by PR puts higher ranks at Table 1 and lower ranks at Table 2. Use Random tables or each player’s table selector to change the assignments.',
+    'Use Ranking for a compact table of player stats, or Roster for player cards and editing. Both share the same sort and hidden-player selection. In Roster, use Sort players to sort by first name, wins, losses, games, or PR. During setup, choose one or two tables. Assign by PR puts higher ranks at Table 1 and lower ranks at Table 2. Use Random tables or each player’s table selector to change the assignments.',
   ],
   [
     'Record or correct a match score',
